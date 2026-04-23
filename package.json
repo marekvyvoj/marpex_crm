@@ -4,8 +4,8 @@
   "description": "Marpex CRM - Sales Operating System",
   "type": "module",
   "scripts": {
-    "start": "cd 06_IMPLEMENTATION && npm run start",
-    "build": "cd 06_IMPLEMENTATION && npm install && npm run build"
+    "start": "cd 06_IMPLEMENTATION && npm -w apps/api run start",
+    "build": "cd 06_IMPLEMENTATION && npm install && npm -w packages/domain run build && npm -w apps/api run build"
   },
   "engines": {
     "node": "22.x"

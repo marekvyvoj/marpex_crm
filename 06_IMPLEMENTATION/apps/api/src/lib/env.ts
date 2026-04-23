@@ -9,7 +9,11 @@ export function loadEnv() {
     return;
   }
 
-  const envCandidates = [resolve(process.cwd(), ".env"), resolve(process.cwd(), "../../.env")];
+  const envFileNames = process.env.NODE_ENV === "production" ? [".env.production", ".env"] : [".env", ".env.production"];
+  const envCandidates = envFileNames.flatMap((fileName) => [
+    resolve(process.cwd(), fileName),
+    resolve(process.cwd(), "../../", fileName),
+  ]);
 
   for (const envPath of envCandidates) {
     if (existsSync(envPath)) {

@@ -6,13 +6,11 @@ echo "🚀 Starting Marpex CRM on Railway..."
 cd 06_IMPLEMENTATION
 
 echo "📦 Installing dependencies..."
-npm install --omit=dev
-
-echo "🔄 Running database migrations..."
-npm run db:migrate
+npm install
 
 echo "🏗️ Building application..."
-npm run build
+npm -w packages/domain run build
+npm -w apps/api run build
 
 echo "✅ Starting server..."
-npm run start
+npm -w apps/api run start

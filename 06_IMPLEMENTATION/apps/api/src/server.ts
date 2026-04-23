@@ -3,7 +3,7 @@ import { loadEnv } from "./lib/env.js";
 
 loadEnv();
 
-const PORT = Number(process.env.API_PORT) || 3005;
+const PORT = Number(process.env.PORT || process.env.API_PORT) || 3005;
 const HOST = process.env.API_HOST || "0.0.0.0";
 
 async function main() {
