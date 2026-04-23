@@ -1,0 +1,13 @@
+{
+  "name": "marpex-crm-railway",
+  "version": "1.0.0",
+  "description": "Marpex CRM - Sales Operating System",
+  "type": "module",
+  "scripts": {
+    "start": "cd 06_IMPLEMENTATION && npm run start",
+    "build": "cd 06_IMPLEMENTATION && npm install && npm run build"
+  },
+  "engines": {
+    "node": "22.x"
+  }
+}
