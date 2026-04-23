@@ -1,0 +1,612 @@
+openapi: 3.1.0
+info:
+  title: Marpex CRM API
+  version: 0.1.0
+  description: |
+    Základná OpenAPI špecifikácia pre MVP verziu Marpex CRM.
+servers:
+  - url: http://localhost:3005
+    description: Local API
+tags:
+  - name: Health
+  - name: Auth
+  - name: Customers
+  - name: Visits
+  - name: Opportunities
+  - name: Tasks
+  - name: Dashboard
+  - name: Users
+  - name: Report
+paths:
+  /api/health:
+    get:
+      tags: [Health]
+      summary: Health check
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  timestamp:
+                    type: string
+                    format: date-time
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: manager@marpex.sk
+                password:
+                  type: string
+                  example: manager123
+      responses:
+        '200':
+          description: Authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/ApiError'
+        '429':
+          $ref: '#/components/responses/ApiError'
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current session user
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/ApiError'
+  /api/customers:
+    get:
+      tags: [Customers]
+      summary: List customers
+      parameters:
+        - in: query
+          name: q
+          schema:
+            type: string
+        - in: query
+          name: segment
+          schema:
+            type: string
+            enum: [oem, vyroba, integrator, servis, other]
+        - in: query
+          name: category
+          schema:
+            type: string
+            enum: [A, B, C]
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Customer list
+          headers:
+            X-Total-Count:
+              schema:
+                type: integer
+            X-Page:
+              schema:
+                type: integer
+            X-Limit:
+              schema:
+                type: integer
+            X-Total-Pages:
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Customer'
+    post:
+      tags: [Customers]
+      summary: Create customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, segment]
+              properties:
+                name:
+                  type: string
+                  example: Demo zákazník a.s.
+                segment:
+                  type: string
+                  enum: [oem, vyroba, integrator, servis, other]
+                strategicCategory:
+                  type: string
+                  enum: [A, B, C]
+      responses:
+        '201':
+          description: Created customer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+        '400':
+          $ref: '#/components/responses/ApiError'
+  /api/visits:
+    get:
+      tags: [Visits]
+      summary: List visits
+      parameters:
+        - in: query
+          name: customerId
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: ownerId
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: late
+          schema:
+            type: boolean
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Visit list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Visit'
+    post:
+      tags: [Visits]
+      summary: Create visit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VisitInput'
+      responses:
+        '201':
+          description: Created visit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Visit'
+        '400':
+          $ref: '#/components/responses/ApiError'
+  /api/opportunities:
+    get:
+      tags: [Opportunities]
+      summary: List opportunities
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Opportunity list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Opportunity'
+    post:
+      tags: [Opportunities]
+      summary: Create opportunity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpportunityInput'
+      responses:
+        '201':
+          description: Created opportunity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Opportunity'
+        '400':
+          $ref: '#/components/responses/ApiError'
+  /api/opportunities/{id}/stage:
+    patch:
+      tags: [Opportunities]
+      summary: Move opportunity stage
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [stage]
+              properties:
+                stage:
+                  type: string
+                  enum: [identified_need, qualified, technical_solution, quote_delivered, negotiation, verbal_confirmed, won, lost]
+                technicalSpec:
+                  type: string
+                competition:
+                  type: string
+                followUpDate:
+                  type: string
+                  format: date
+                closeResult:
+                  type: string
+                closeTimestamp:
+                  type: string
+                  format: date-time
+                lostReason:
+                  type: string
+      responses:
+        '200':
+          description: Stage moved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  newStage:
+                    type: string
+                    example: qualified
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '404':
+          $ref: '#/components/responses/ApiError'
+  /api/tasks:
+    get:
+      tags: [Tasks]
+      summary: List tasks
+      parameters:
+        - in: query
+          name: opportunityId
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: customerId
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: done
+          schema:
+            type: boolean
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Task list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
+    post:
+      tags: [Tasks]
+      summary: Create task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, dueDate]
+              properties:
+                title:
+                  type: string
+                dueDate:
+                  type: string
+                  format: date
+                opportunityId:
+                  type: string
+                  format: uuid
+                customerId:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Created task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+  /api/dashboard:
+    get:
+      tags: [Dashboard]
+      summary: Manager or salesperson dashboard summary
+      responses:
+        '200':
+          description: Dashboard payload
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  customerCount:
+                    type: integer
+                  totalPipeline:
+                    type: number
+                  weightedPipeline:
+                    type: number
+                  top10:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        title:
+                          type: string
+                        customerName:
+                          type: string
+                        value:
+                          type: number
+                        stage:
+                          type: string
+  /api/report/salesperson:
+    get:
+      tags: [Report]
+      summary: Manager report per salesperson
+      responses:
+        '200':
+          description: Salesperson report
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    userId:
+                      type: string
+                      format: uuid
+                    name:
+                      type: string
+                    visitCount:
+                      type: integer
+                    weightedPipeline:
+                      type: number
+        '403':
+          $ref: '#/components/responses/ApiError'
+components:
+  parameters:
+    Page:
+      in: query
+      name: page
+      schema:
+        type: integer
+        minimum: 1
+      description: Voliteľné číslo stránky.
+    Limit:
+      in: query
+      name: limit
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+      description: Voliteľný page size.
+  responses:
+    ApiError:
+      description: Standard API error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          examples:
+            validation:
+              value:
+                error: Validation error
+                code: VALIDATION_ERROR
+                details:
+                  field:
+                    - Povinné pole
+  schemas:
+    ApiError:
+      type: object
+      required: [error, code]
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [manager, sales]
+    Customer:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        segment:
+          type: string
+        strategicCategory:
+          type: string
+          nullable: true
+    Visit:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        visitGoal:
+          type: string
+        result:
+          type: string
+        potentialEur:
+          type: string
+        nextStep:
+          type: string
+        nextStepDeadline:
+          type: string
+          format: date
+    VisitInput:
+      type: object
+      required:
+        - date
+        - customerId
+        - contactId
+        - visitGoal
+        - result
+        - customerNeed
+        - opportunityCreated
+        - potentialEur
+        - competition
+        - nextStep
+        - nextStepDeadline
+      properties:
+        date:
+          type: string
+          format: date
+        customerId:
+          type: string
+          format: uuid
+        contactId:
+          type: string
+          format: uuid
+        visitGoal:
+          type: string
+        result:
+          type: string
+        customerNeed:
+          type: string
+        opportunityCreated:
+          type: boolean
+        opportunityType:
+          type: string
+          enum: [project, service, cross_sell]
+        potentialEur:
+          type: number
+        competition:
+          type: string
+        nextStep:
+          type: string
+        nextStepDeadline:
+          type: string
+          format: date
+    Opportunity:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        customerId:
+          type: string
+          format: uuid
+        value:
+          type: string
+        stage:
+          type: string
+        nextStepSummary:
+          type: string
+        nextStepDeadline:
+          type: string
+          format: date
+    OpportunityInput:
+      type: object
+      required: [title, customerId, value, stage, nextStepSummary, nextStepDeadline]
+      properties:
+        title:
+          type: string
+          example: Retrofit linky ABC
+        customerId:
+          type: string
+          format: uuid
+        value:
+          type: number
+          example: 45000
+        stage:
+          type: string
+          enum: [identified_need, qualified, technical_solution, quote_delivered, negotiation, verbal_confirmed]
+        nextStepSummary:
+          type: string
+          example: Poslať technický návrh
+        nextStepDeadline:
+          type: string
+          format: date
+    Task:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        dueDate:
+          type: string
+          format: date
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true

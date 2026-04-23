@@ -1,0 +1,27 @@
+{
+  "name": "@marpex/domain",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./pipeline": "./dist/pipeline/index.js",
+    "./visits": "./dist/visits/index.js",
+    "./opportunities": "./dist/opportunities/index.js",
+    "./customers": "./dist/customers/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  }
+}

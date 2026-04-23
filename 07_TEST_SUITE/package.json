@@ -1,0 +1,22 @@
+{
+  "name": "marpex-test-suite",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "npm run test:unit && npm run test:integration && npm run test:web",
+    "test:unit": "vitest run unit --config vitest.config.ts",
+    "test:integration": "vitest run integration --config vitest.config.ts",
+    "test:web": "npm --prefix ../06_IMPLEMENTATION run phase5:test:web",
+    "test:e2e": "playwright test --config playwright.config.ts",
+    "test:load:smoke": "node load/dashboard-smoke.mjs",
+    "coverage": "npm --prefix ../06_IMPLEMENTATION run phase5:coverage"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@vitest/coverage-v8": "^2.1.8",
+    "drizzle-orm": "^0.36.0",
+    "pg": "^8.13.0",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}

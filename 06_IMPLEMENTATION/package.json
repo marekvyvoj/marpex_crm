@@ -1,0 +1,39 @@
+{
+  "name": "marpex-crm",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:api": "npm -w apps/api run dev",
+    "dev:web": "npm -w apps/web run dev",
+    "build": "npm -w packages/domain run build && npm -w apps/api run build && npm -w apps/web run build",
+    "db:generate": "npm -w apps/api run db:generate",
+    "db:migrate": "npm -w apps/api run db:migrate",
+    "db:seed": "npm -w apps/api run db:seed",
+    "lint": "eslint \"apps/**/*.{ts,tsx}\" \"packages/**/*.{ts,tsx}\" && npm run typecheck",
+    "typecheck": "npm -w packages/domain run typecheck && npm -w apps/api run typecheck && npm -w apps/web run typecheck",
+    "format": "prettier --write \"{apps,packages,docs}/**/*.{ts,tsx,js,json,md,yml,yaml}\" \"*.{json,md,yml,yaml}\"",
+    "format:check": "prettier --check \"{apps,packages,docs}/**/*.{ts,tsx,js,json,md,yml,yaml}\" \"*.{json,md,yml,yaml}\"",
+    "security:audit": "npm audit --audit-level=moderate",
+    "phase5:test:web": "vitest run tests/web --config vitest.phase5.config.ts",
+    "phase5:test": "vitest run --config vitest.phase5.config.ts",
+    "phase5:coverage": "vitest run --coverage --config vitest.phase5.config.ts"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.25.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@vitest/coverage-v8": "^2.1.8",
+    "eslint": "^9.25.0",
+    "globals": "^16.0.0",
+    "jsdom": "^25.0.1",
+    "prettier": "^3.5.3",
+    "typescript-eslint": "^8.30.1",
+    "vitest": "^2.1.8"
+  }
+}
