@@ -16,10 +16,16 @@ COPY packages/domain ./packages/domain
 
 RUN npm -w packages/domain run build && npm -w apps/web run build
 
-FROM nginx:1.27-alpine AS runtime
-COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
+FROM node:22-alpine AS runtime
+WORKDIR /app
 
-EXPOSE 80
+RUN npm install -g serve@14
 
-CMD ["nginx", "-g", "daemon off;"]
+COPY --from=builder /app/apps/web/dist ./dist
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -qO- http://0.0.0.0:3000/ || exit 1
+
+CMD ["serve", "-s", "dist", "-l", "tcp://0.0.0.0:3000"]
