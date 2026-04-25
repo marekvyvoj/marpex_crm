@@ -29,6 +29,6 @@ COPY --from=builder /app/06_IMPLEMENTATION/apps/web/dist ./dist
 EXPOSE 3000
 
 HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -qO- http://0.0.0.0:3000/ || exit 1
+  CMD wget -qO- http://127.0.0.1:${PORT:-3000}/ || exit 1
 
-CMD ["serve", "-s", "dist", "-l", "tcp://0.0.0.0:3000"]
+CMD ["sh", "-c", "serve -s dist -l tcp://0.0.0.0:${PORT:-3000}"]
