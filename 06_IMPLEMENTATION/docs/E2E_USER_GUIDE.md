@@ -22,7 +22,11 @@ E2E je užitočné z dvoch dôvodov:
 
 ## 2. Čo potrebuješ pripraviť
 
-Pre manuálne vyskúšanie systému lokálne:
+Pre manuálne vyskúšanie systému v produkcii na Railway:
+
+Stačí ti webový prehliadač a prístup k produkčným URL.
+
+Ak chceš pracovať s lokálnym vývojom:
 
 1. Spusti PostgreSQL cez Docker Compose.
 2. Uisti sa, že migrácie a seed sú aplikované.
@@ -40,7 +44,12 @@ npm run dev:api
 npm run dev:web
 ```
 
-Lokálne URL pre manuálne použitie:
+Production URL pre manuálne použitie:
+
+- Web: `https://web-production-c47f4.up.railway.app`
+- API health: `https://marpexcrm-production.up.railway.app/api/health`
+
+Lokálne URL (pri lokálnom vývoji):
 
 - Web: `http://localhost:5173`
 - API health: `http://localhost:3005/api/health`
@@ -58,7 +67,7 @@ Táto časť je určená pre používateľa systému. Každý scenár je napísa
 
 Kroky:
 
-1. Otvor `http://localhost:5173`.
+1. Otvor `https://web-production-c47f4.up.railway.app` (alebo `http://localhost:5173` ak pracuješ lokálne).
 2. Prihlás sa ako manažér cez `manager@marpex.sk` / `manager123`.
 3. Po prihlásení sa má otvoriť Dashboard.
 4. V ľavej navigácii over položky `Dashboard`, `Zákazníci`, `Návštevy`, `Pipeline`, `Import`, `Report`, `Používatelia`.
