@@ -18,7 +18,8 @@ import { importRoutes } from "./routes/import.js";
 import { reportRoutes } from "./routes/report.js";
 
 export async function buildApp() {
-  const app = Fastify({ logger: true });
+  const isProduction = process.env.NODE_ENV === "production";
+  const app = Fastify({ logger: true, trustProxy: isProduction });
 
   // ── Content-type parsers ─────────────────────────────
   app.addContentTypeParser("text/csv", { parseAs: "string" }, (_req, body, done) => done(null, body));
@@ -34,9 +35,9 @@ export async function buildApp() {
   await app.register(fastifySession, {
     secret: requireEnv("SESSION_SECRET"),
     cookie: {
-      secure: process.env.NODE_ENV === "production",
+      secure: isProduction,
       httpOnly: true,
-      sameSite: "lax",
+      sameSite: isProduction ? "none" : "lax",
       maxAge: 8 * 60 * 60 * 1000, // 8h
     },
   });
