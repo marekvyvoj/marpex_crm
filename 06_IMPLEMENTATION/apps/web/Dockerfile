@@ -1,18 +1,21 @@
 FROM node:22-alpine AS builder
-WORKDIR /app
+WORKDIR /app/06_IMPLEMENTATION
 
-COPY package.json package-lock.json tsconfig.base.json ./
-COPY apps/web/package.json apps/web/package.json
-COPY packages/domain/package.json packages/domain/package.json
-COPY apps/web/postcss.config.js apps/web/postcss.config.js
-COPY apps/web/tailwind.config.js apps/web/tailwind.config.js
-COPY apps/web/tsconfig.json apps/web/tsconfig.json
-COPY apps/web/vite.config.ts apps/web/vite.config.ts
+ARG VITE_API_URL
+ENV VITE_API_URL=$VITE_API_URL
+
+COPY 06_IMPLEMENTATION/package.json 06_IMPLEMENTATION/package-lock.json 06_IMPLEMENTATION/tsconfig.base.json ./
+COPY 06_IMPLEMENTATION/apps/web/package.json apps/web/package.json
+COPY 06_IMPLEMENTATION/packages/domain/package.json packages/domain/package.json
+COPY 06_IMPLEMENTATION/apps/web/postcss.config.js apps/web/postcss.config.js
+COPY 06_IMPLEMENTATION/apps/web/tailwind.config.js apps/web/tailwind.config.js
+COPY 06_IMPLEMENTATION/apps/web/tsconfig.json apps/web/tsconfig.json
+COPY 06_IMPLEMENTATION/apps/web/vite.config.ts apps/web/vite.config.ts
 
 RUN npm ci
 
-COPY apps/web ./apps/web
-COPY packages/domain ./packages/domain
+COPY 06_IMPLEMENTATION/apps/web ./apps/web
+COPY 06_IMPLEMENTATION/packages/domain ./packages/domain
 
 RUN npm -w packages/domain run build && npm -w apps/web run build
 
@@ -21,7 +24,7 @@ WORKDIR /app
 
 RUN npm install -g serve@14
 
-COPY --from=builder /app/apps/web/dist ./dist
+COPY --from=builder /app/06_IMPLEMENTATION/apps/web/dist ./dist
 
 EXPOSE 3000
 
