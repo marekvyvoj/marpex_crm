@@ -22,7 +22,7 @@
     "phase5:coverage": "vitest run --coverage --config vitest.phase5.config.ts"
   },
   "engines": {
-    "node": ">=22.0.0"
+    "node": "22.x"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",

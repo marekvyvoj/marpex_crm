@@ -2,6 +2,14 @@
 
 Návod ako deployovať React frontend na Railway ako **druhy service** vedľa API.
 
+Overené 2026-04-26 cez Railway CLI:
+
+- live web service sa volá `web`
+- aktuálny production build používa `06_IMPLEMENTATION/apps/web/Dockerfile`
+- build beží na `node:22-alpine`
+- build context musí obsahovať celý repo root, aby boli dostupné cesty `06_IMPLEMENTATION/...`
+- current live flow nepoužíva `web.Procfile`
+
 **Čas na setup: ~10 minút**
 
 ---
@@ -23,8 +31,8 @@ Návod ako deployovať React frontend na Railway ako **druhy service** vedľa AP
 
 Railway potom:
 - Klonuje repo
-- Detekuje `package.json` v root
-- Automaticky pustí build
+- Použije Dockerfile-based build pre web service
+- Builduje frontend z monorepo zdrojov pod `06_IMPLEMENTATION/`
 
 ---
 
@@ -36,31 +44,25 @@ Keď sa service začína builday, musíš ho nakonfigurovať ako **WEB**, nie ak
 
 1. Klikni na nový service (zvyčajne pomenovaný `marpex-crm` alebo podobne)
 2. Choď na **"Settings"** tab
-3. Nájdi **"Root Directory"** a nastav:
+3. Nechaj build context tak, aby obsahoval celý repo root.
+4. Ako Dockerfile nastav:
 
 ```
-06_IMPLEMENTATION/apps/web
+06_IMPLEMENTATION/apps/web/Dockerfile
 ```
 
-4. Nájdi **"Procfile"** a nastav:
-
-```
-web.Procfile
-```
-
-Inak Railway hľadá v root, čo je zlé. Musíš mu povedať aby hľadal v `06_IMPLEMENTATION/apps/web`.
+`06_IMPLEMENTATION/apps/web/Dockerfile` už obsahuje build aj runtime kroky. Pre current live setup `web.Procfile` nepoužívaj.
 
 ---
 
 ## 🔨 KROK 3: Build príkaz (automatický)
 
-Railway sám detekuje build príkaz z `06_IMPLEMENTATION/apps/web/package.json`:
+Build prebieha cez Dockerfile:
 
-```
-npm run build
-```
-
-To je správne. Nic nemusíš meniť.
+- base image: `node:22-alpine`
+- install: `npm ci`
+- build: `npm -w packages/domain run build && npm -w apps/web run build`
+- runtime: `serve -s dist -l tcp://0.0.0.0:${PORT:-3000}`
 
 ---
 
@@ -84,16 +86,7 @@ VITE_API_URL=https://api.marpex.sk
 
 ## 🚀 KROK 5: Start príkaz (automatický)
 
-Railway automaticky spustí:
-
-```bash
-npm -w apps/web run start
-```
-
-Čo znamená:
-- `npm -w apps/web` – pracuj s `apps/web` workspace
-- `run start` – spusti `start` skript z `apps/web/package.json`
-- Ktorý servuje `dist/` na porte `3000`
+Start príkaz je definovaný v Dockerfile runtime image a servuje `dist/` cez `serve` na porte `${PORT:-3000}`.
 
 ---
 
@@ -150,11 +143,11 @@ export const api = {
 Keď je deployment hotový:
 
 ```
-API:   https://marpex-api.railway.app
-Web:   https://marpex-web.railway.app
+API:   https://marpexcrm-production.up.railway.app
+Web:   https://web-production-c47f4.up.railway.app
 ```
 
-Bratovi pošleš: https://marpex-web.railway.app
+Bratovi pošleš web Railway URL alebo vlastnú doménu.
 
 Aplikácia sa v браузéri prihláša a komunikuje s API automaticky (s credentials/cookies).
 
@@ -172,6 +165,11 @@ await app.register(fastifyCors, {
   credentials: true, // ← DÔLEŽITÉ
 });
 ```
+
+Pre current Railway setup sú dôležité ešte dve veci:
+
+- v production musí API bežať s `trustProxy: true`
+- session cookie musí mať `SameSite=None` a `Secure`, lebo web a API bežia na rozdielnych Railway doménach
 
 2. **Web strana** (v fetch/axios):
 
@@ -211,8 +209,8 @@ fetch(url, { credentials: "include" }) // ← DÔLEŽITÉ
 
 - [ ] API service je deployment a live
 - [ ] Vytvoril som nový web service v Railway
-- [ ] Nastayil som "Root Directory" na `06_IMPLEMENTATION/apps/web`
-- [ ] Nastayil som "Procfile" na `web.Procfile`
+- [ ] Web service používa `06_IMPLEMENTATION/apps/web/Dockerfile`
+- [ ] Build context obsahuje celý repo root s `06_IMPLEMENTATION/`
 - [ ] `VITE_API_URL` premenná ukazuje na správny API service
 - [ ] Web sa builday bez erroru
 - [ ] Web sa spúšťa na porte 3000

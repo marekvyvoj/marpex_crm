@@ -14,7 +14,7 @@ Tento dokument pokrýva všetky kroky potrebné na nasadenie Marpex CRM na VPS s
 | CPU | 2 vCPU | 4 vCPU |
 | Docker | 24+ | latest |
 | Docker Compose | v2 CLI plugin | latest |
-| Node.js | 20 LTS | 22 LTS |
+| Node.js | 22 LTS | latest 22.x LTS |
 | npm | 10+ | latest |
 
 ---
@@ -50,10 +50,10 @@ node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 
 ```bash
 cd 06_IMPLEMENTATION
-docker compose up -d postgres
+docker compose up -d db
 # Overiť:
 docker compose ps
-docker compose logs postgres --tail=20
+docker compose logs db --tail=20
 ```
 
 Počkaj kým Postgres hlási `ready to accept connections`.

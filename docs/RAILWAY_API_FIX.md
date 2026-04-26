@@ -1,5 +1,14 @@
 # Railway API Deployment Guide – Oprava a deploy
 
+Overené 2026-04-26 cez Railway CLI:
+
+- live API service je `marpex_crm`
+- service beží v `production` prostredí projektu `ravishing-flow`
+- Railway builduje z workspace rootu `06_IMPLEMENTATION/`
+- build používa Node `22.22.2`
+- build command je `npm -w packages/domain run build && npm -w apps/api run build`
+- start command je `npm -w apps/api run start`
+
 Keď ti Railway padá na Dockerfile, je to preto, že Root Directory je špatne nastavený.
 
 ## 🔧 Ako to opraviť:
@@ -34,9 +43,9 @@ Railway teraz:
 
 ## 📋 Čo je v repo:
 
-Práve som vytvoril `06_IMPLEMENTATION/api.Procfile` a pushol na GitHub.
+`06_IMPLEMENTATION/api.Procfile` ostáva správny referenčný súbor pre API service flow.
 
-So týmito nastaveniami by to malo fungovať.
+Tieto nastavenia zodpovedajú aktuálne bežiacemu production deploymentu.
 
 ---
 
