@@ -41,3 +41,8 @@
 
 - Decision: Implement customer plan tracking as `annualRevenuePlan` plus `annualRevenuePlanYear` directly on the `customers` table and evaluate progress only when the stored year matches the current year.
 - Why: The request required current-year progress against ABRA actuals, but the repo had no existing yearly plan model or ABRA plan source. This keeps the change small and usable now while leaving room for a later dedicated yearly-plan table if historical planning becomes necessary.
+
+### Recover Local Integration DB By Repairing The Ledger First
+
+- Decision: For the local `07_TEST_SUITE` PostgreSQL target, recover migration drift by backfilling `drizzle.__drizzle_migrations` for already-present `0003` to `0005`, then rerun `0006` instead of replaying older SQL or resetting the database.
+- Why: The local schema already contained ABRA tables from `0003`, but the ledger only recorded `0001` and `0002`, so a normal `drizzle-kit migrate` retried `0003` and failed on existing relations. Repairing the local ledger preserved data, kept the recovery minimal, and let the forward-safe `0006` migration add the missing columns cleanly.

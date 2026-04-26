@@ -118,8 +118,8 @@ export function OpportunityDetailPage() {
   });
 
   const completeTask = useMutation({
-    mutationFn: (taskId: string) =>
-      api(`/tasks/${taskId}/complete`, { method: "PATCH", body: "{}" }),
+    mutationFn: ({ taskId, completed }: { taskId: string; completed: boolean }) =>
+      api(`/tasks/${taskId}/complete`, { method: "PATCH", body: JSON.stringify({ completed }) }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["opp-tasks", id] });
     },
@@ -327,8 +327,7 @@ export function OpportunityDetailPage() {
                   <input
                     type="checkbox"
                     checked={!!t.completedAt}
-                    disabled={!!t.completedAt}
-                    onChange={() => completeTask.mutate(t.id)}
+                    onChange={(event) => completeTask.mutate({ taskId: t.id, completed: event.target.checked })}
                     className="mt-0.5"
                   />
                   <div className="flex-1 min-w-0">

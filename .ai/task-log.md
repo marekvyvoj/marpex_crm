@@ -32,6 +32,16 @@
 - Verified API build on Node `22.22.2` from the `06_IMPLEMENTATION` workspace and verified web Dockerfile deployment on `node:22-alpine`.
 - Synced the Launch Checklist, Railway guides, and `.ai/open-questions.md` to the verified Node 22 and deployment facts.
 
+### Customer Revenue Split, Task Toggle, And Local DB Recovery
+
+- Replaced the customer list `Revenue` column with current-year and previous-year ABRA revenue fields in the API list payload and web table.
+- Made opportunity tasks reversible by allowing `PATCH /api/tasks/:id/complete` to accept `completed: false` and by removing the one-way checkbox lock in the UI.
+- Added focused web tests for `CustomersPage` and `OpportunityDetailPage`.
+- Expanded integration coverage for yearly customer revenue fields and reversible task completion.
+- Confirmed focused web tests and `cd 06_IMPLEMENTATION && npm run typecheck` passed.
+- Diagnosed local integration DB drift: `drizzle.__drizzle_migrations` only recorded `0001` and `0002`, while ABRA tables from `0003` already existed and newer columns were missing.
+- Recovered the local integration target by backfilling the local Drizzle ledger for `0003` to `0005`, reran `cd 06_IMPLEMENTATION && npm run db:migrate`, and then confirmed `cd 07_TEST_SUITE && npm run test:integration` passed 19/19.
+
 ## Logging Rules
 
 - Append short factual entries only.

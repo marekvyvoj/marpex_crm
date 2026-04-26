@@ -275,6 +275,7 @@ describe("API integration", () => {
   it("creates, filters, updates and expands customer detail resources", async () => {
     const manager = await getUserByEmail("manager@marpex.sk");
     const { cookie } = await loginAs(app, "manager@marpex.sk", "manager123", "127.0.0.86");
+    const currentYear = new Date().getFullYear();
 
     const createResponse = await app.inject({
       method: "POST",
@@ -291,6 +292,26 @@ describe("API integration", () => {
     });
     expect(createResponse.statusCode).toBe(201);
     const customer = createResponse.json();
+
+    const [{ db }, { abraRevenues }] = await Promise.all([
+      import("../../06_IMPLEMENTATION/apps/api/src/db/index.ts"),
+      import("../../06_IMPLEMENTATION/apps/api/src/db/schema.ts"),
+    ]);
+
+    await db.insert(abraRevenues).values([
+      {
+        customerId: customer.id,
+        year: currentYear,
+        totalAmount: "125000.50",
+        invoiceCount: 4,
+      },
+      {
+        customerId: customer.id,
+        year: currentYear - 1,
+        totalAmount: "83000.25",
+        invoiceCount: 3,
+      },
+    ]);
 
     const contactResponse = await app.inject({
       method: "POST",
@@ -330,7 +351,14 @@ describe("API integration", () => {
       headers: { cookie },
     });
     expect(listResponse.statusCode).toBe(200);
-    expect(listResponse.json().some((row: { id: string }) => row.id === customer.id)).toBe(true);
+    const listedCustomer = listResponse
+      .json()
+      .find((row: { id: string }) => row.id === customer.id);
+    expect(listedCustomer).toMatchObject({
+      id: customer.id,
+      currentYearRevenue: "125000.50",
+      previousYearRevenue: "83000.25",
+    });
 
     const singleResponse = await app.inject({
       method: "GET",
@@ -338,7 +366,12 @@ describe("API integration", () => {
       headers: { cookie },
     });
     expect(singleResponse.statusCode).toBe(200);
-    expect(singleResponse.json()).toMatchObject({ name: "Phase5 Customer CRUD", segment: "integrator" });
+    expect(singleResponse.json()).toMatchObject({
+      name: "Phase5 Customer CRUD",
+      segment: "integrator",
+      currentYearRevenue: "125000.50",
+      previousYearRevenue: "83000.25",
+    });
 
     const contactsResponse = await app.inject({
       method: "GET",
@@ -757,6 +790,23 @@ describe("API integration", () => {
     });
     expect(doneList.statusCode).toBe(200);
     expect(doneList.json().map((row: { id: string }) => row.id)).toContain(oppTask.id);
+
+    const reopenResponse = await app.inject({
+      method: "PATCH",
+      url: `/api/tasks/${oppTask.id}/complete`,
+      headers: { cookie },
+      payload: { completed: false },
+    });
+    expect(reopenResponse.statusCode).toBe(200);
+    expect(reopenResponse.json().completedAt).toBeNull();
+
+    const reopenedList = await app.inject({
+      method: "GET",
+      url: `/api/tasks?opportunityId=${opportunity.id}&done=false`,
+      headers: { cookie },
+    });
+    expect(reopenedList.statusCode).toBe(200);
+    expect(reopenedList.json().map((row: { id: string }) => row.id)).toContain(oppTask.id);
 
     const deleteResponse = await app.inject({
       method: "DELETE",

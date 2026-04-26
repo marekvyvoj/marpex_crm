@@ -8,14 +8,20 @@ interface Customer {
   id: string;
   name: string;
   segment: string;
-  currentRevenue: string | null;
+  currentYearRevenue: string | null;
+  previousYearRevenue: string | null;
   potential: string | null;
   strategicCategory: string | null;
+}
+
+function formatCurrency(value: string | null) {
+  return value ? `€ ${Number(value).toLocaleString("sk-SK")}` : "–";
 }
 
 export function CustomersPage() {
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
+  const currentYear = new Date().getFullYear();
 
   // Filter state
   const [search, setSearch] = useState("");
@@ -136,13 +142,14 @@ export function CustomersPage() {
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] bg-white rounded-lg border border-gray-200 text-sm">
+          <table className="w-full min-w-[920px] bg-white rounded-lg border border-gray-200 text-sm">
             <thead>
               <tr className="border-b border-gray-200 text-left text-gray-500">
                 <th className="px-4 py-2">Názov</th>
                 <th className="px-4 py-2">Segment</th>
                 <th className="px-4 py-2">Kategória</th>
-                <th className="px-4 py-2 text-right">Revenue</th>
+                <th className="px-4 py-2 text-right">Tržby {currentYear}</th>
+                <th className="px-4 py-2 text-right">Tržby {currentYear - 1}</th>
                 <th className="px-4 py-2 text-right">Potenciál</th>
               </tr>
             </thead>
@@ -154,8 +161,9 @@ export function CustomersPage() {
                   </td>
                   <td className="px-4 py-2">{c.segment}</td>
                   <td className="px-4 py-2">{c.strategicCategory || "–"}</td>
-                  <td className="px-4 py-2 text-right">{c.currentRevenue ? `€ ${Number(c.currentRevenue).toLocaleString("sk-SK")}` : "–"}</td>
-                  <td className="px-4 py-2 text-right">{c.potential ? `€ ${Number(c.potential).toLocaleString("sk-SK")}` : "–"}</td>
+                  <td className="px-4 py-2 text-right">{formatCurrency(c.currentYearRevenue)}</td>
+                  <td className="px-4 py-2 text-right">{formatCurrency(c.previousYearRevenue)}</td>
+                  <td className="px-4 py-2 text-right">{formatCurrency(c.potential)}</td>
                 </tr>
               ))}
             </tbody>

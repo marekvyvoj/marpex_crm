@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
-import { eq, desc, ilike, and, sql, type SQL } from "drizzle-orm";
+import { eq, desc, ilike, and, inArray, sql, type SQL } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { customers, contacts, visits, opportunities, abraRevenues, abraQuotes, abraOrders } from "../db/schema.js";
 import { customerSchema, contactSchema, customerSegments, strategicCategories } from "@marpex/domain";
@@ -18,6 +18,53 @@ const bodyObjectSchema = z.record(z.string(), z.unknown());
 
 type CustomerListQuery = z.input<typeof customerListQuerySchema>;
 
+async function withRevenueSummary<T extends { id: string }>(rows: T[]) {
+  if (rows.length === 0) {
+    return [] as Array<T & { currentYearRevenue: string | null; previousYearRevenue: string | null }>;
+  }
+
+  const currentYear = new Date().getFullYear();
+  const revenueRows = await db
+    .select({
+      customerId: abraRevenues.customerId,
+      year: abraRevenues.year,
+      totalAmount: abraRevenues.totalAmount,
+    })
+    .from(abraRevenues)
+    .where(
+      and(
+        inArray(abraRevenues.customerId, rows.map((row) => row.id)),
+        inArray(abraRevenues.year, [currentYear, currentYear - 1]),
+      ),
+    );
+
+  const revenuesByCustomer = new Map<string, { currentYearRevenue: string | null; previousYearRevenue: string | null }>();
+
+  for (const revenue of revenueRows) {
+    const summary = revenuesByCustomer.get(revenue.customerId) ?? {
+      currentYearRevenue: null,
+      previousYearRevenue: null,
+    };
+
+    if (revenue.year === currentYear) {
+      summary.currentYearRevenue = revenue.totalAmount;
+    }
+    if (revenue.year === currentYear - 1) {
+      summary.previousYearRevenue = revenue.totalAmount;
+    }
+
+    revenuesByCustomer.set(revenue.customerId, summary);
+  }
+
+  return rows.map((row) => ({
+    ...row,
+    ...(revenuesByCustomer.get(row.id) ?? {
+      currentYearRevenue: null,
+      previousYearRevenue: null,
+    }),
+  }));
+}
+
 export const customerRoutes: FastifyPluginAsync = async (app) => {
   // List customers — optional ?q= (name search), ?segment=, ?category=
   app.get<{ Querystring: CustomerListQuery }>("/", async (request, reply) => {
@@ -30,7 +77,8 @@ export const customerRoutes: FastifyPluginAsync = async (app) => {
     const pagination = resolvePagination(request.query);
 
     if (!pagination) {
-      return db.select().from(customers).where(where).orderBy(customers.name);
+      const rows = await db.select().from(customers).where(where).orderBy(customers.name);
+      return withRevenueSummary(rows);
     }
 
     const [{ total }] = await db
@@ -48,7 +96,7 @@ export const customerRoutes: FastifyPluginAsync = async (app) => {
 
     setPaginationHeaders(reply, total, pagination);
 
-    return rows;
+    return withRevenueSummary(rows);
   });
 
   // Get single customer
@@ -61,7 +109,8 @@ export const customerRoutes: FastifyPluginAsync = async (app) => {
       .limit(1);
 
     if (!row) return sendError(reply, 404, "NOT_FOUND", "Not found");
-    return row;
+    const [customer] = await withRevenueSummary([row]);
+    return customer;
   });
 
   // Create customer

@@ -14,6 +14,10 @@ const taskCreateSchema = z.object({
   customerId: z.string().uuid().optional(),
 });
 
+const taskCompleteSchema = z.object({
+  completed: z.boolean().optional(),
+});
+
 const taskListQuerySchema = paginationQuerySchema.extend({
   opportunityId: z.string().uuid().optional(),
   customerId: z.string().uuid().optional(),
@@ -86,9 +90,11 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
   // Mark task complete
   app.patch<{ Params: { id: string } }>("/:id/complete", async (request, reply) => {
     z.string().uuid().parse(request.params.id);
+    const body = taskCompleteSchema.parse(request.body ?? {});
+    const completed = body.completed ?? true;
     const [row] = await db
       .update(tasks)
-      .set({ completedAt: new Date(), updatedAt: new Date() })
+      .set({ completedAt: completed ? new Date() : null, updatedAt: new Date() })
       .where(eq(tasks.id, request.params.id))
       .returning();
     if (!row) return sendError(reply, 404, "NOT_FOUND", "Not found");

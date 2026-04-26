@@ -506,6 +506,12 @@ components:
         currentRevenue:
           type: string
           nullable: true
+        currentYearRevenue:
+          type: string
+          nullable: true
+        previousYearRevenue:
+          type: string
+          nullable: true
         annualRevenuePlan:
           type: string
           nullable: true

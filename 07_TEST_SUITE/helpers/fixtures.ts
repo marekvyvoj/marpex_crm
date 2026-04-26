@@ -166,6 +166,7 @@ export async function createTestOpportunity(overrides: {
 
 export async function cleanupTestData() {
   const {
+    abraRevenues,
     auditLog,
     contacts,
     customers,
@@ -222,6 +223,10 @@ export async function cleanupTestData() {
   await db.delete(tasks).where(inArray(tasks.customerId, customerIds));
   if (visitIds.length > 0) {
     await db.delete(visits).where(inArray(visits.id, visitIds));
+  }
+
+  if (customerIds.length > 0) {
+    await db.delete(abraRevenues).where(inArray(abraRevenues.customerId, customerIds));
   }
 
   if (opportunityIds.length > 0) {

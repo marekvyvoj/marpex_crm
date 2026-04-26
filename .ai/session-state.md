@@ -1,9 +1,9 @@
 # Session State
 
 Last updated: 2026-04-26
-Current task: Visits detail, mobile UX, pipeline stage detail view, and customer yearly revenue split
-Current phase: Implemented and validated locally; DB migration execution still pending
-Approval status: Safe for low-risk local edits and non-destructive validation. Not pre-approved for DB-mutating commands.
+Current task: Customer yearly revenue split, reversible opportunity tasks, local integration DB alignment, commit/push, and Railway deploy
+Current phase: Feature code and local validation completed; handoff docs are being refreshed before git push and Railway deployment
+Approval status: Explicit user approval received for local DB-mutating commands against the local integration target, git commit/push, and Railway deploy steps for this task.
 
 ## Repository Discovery
 
@@ -84,6 +84,9 @@ Approval status: Safe for low-risk local edits and non-destructive validation. N
 - `cd 06_IMPLEMENTATION && npx vitest run tests/web/customer-detail-page.spec.tsx --config vitest.phase5.config.ts`: passed.
 - `cd 06_IMPLEMENTATION && npx vitest run tests/web/layout.spec.tsx tests/web/import-page.spec.tsx tests/web/report-page.spec.tsx tests/web/users-page.spec.tsx --config vitest.phase5.config.ts`: passed.
 - `cd 06_IMPLEMENTATION && npm run typecheck`: passed.
+- `cd 06_IMPLEMENTATION && npx vitest run tests/web/customers-page.spec.tsx tests/web/opportunity-detail-page.spec.tsx --config vitest.phase5.config.ts`: passed.
+- Local PostgreSQL recovery: confirmed `drizzle.__drizzle_migrations` existed in schema `drizzle`, backfilled local ledger entries for already-present `0003` to `0005`, then reran `cd 06_IMPLEMENTATION && npm run db:migrate`: passed.
+- `cd 07_TEST_SUITE && npm run test:integration`: passed (19/19).
 
 ## Review Results
 
@@ -92,12 +95,20 @@ Approval status: Safe for low-risk local edits and non-destructive validation. N
 - Autonomy safety review: high-risk mutating actions now require explicit user approval or an explicitly confirmed local disposable target. Same-session review cannot self-approve critical work.
 - Quality gate review: command names match current manifests. The original Docker service-name and Node-version drift were later confirmed and resolved via doc updates.
 - Documentation review: report and handoff materials were completed, and the handoff summary now has a canonical home in this file.
+- Same-session reduced-assurance reviewer pass for the latest follow-up found no new contract or auth regressions after the customer list payload expansion and task toggle change; behavior is backed by focused web tests plus the full integration suite.
+- Same-session security pass for the latest follow-up confirmed the only mutating recovery step was limited to the local `localhost:5432/marpex_crm` integration target and did not touch Railway production data.
 
 ## Active Blockers And Manual Confirmation
 
-- Added migrations `06_IMPLEMENTATION/apps/api/drizzle/0004_visit_notes.sql` and `06_IMPLEMENTATION/apps/api/drizzle/0005_customer_annual_plan.sql`, but they were not executed because no explicit approval or disposable DB target was provided.
 - Visit dictation on mobile depends on browser support for `SpeechRecognition` or `webkitSpeechRecognition`; unsupported browsers fall back to normal text input or OS keyboard dictation.
 - Customer annual plan is currently modeled as a single current-year amount plus year stamp on the customer record. If the product needs multi-year plan history or ABRA-driven plan import, this should move to a dedicated table or import flow.
+
+## Current Execution Notes
+
+- Focused web tests for `CustomersPage` and `OpportunityDetailPage` passed after the yearly revenue split and reversible task toggle changes.
+- `cd 06_IMPLEMENTATION && npm run typecheck` passed after the latest follow-up edits.
+- Local integration DB drift was resolved by backfilling the local Drizzle ledger for already-existing `0003` to `0005` records and then applying the pending safe catch-up migration `0006`.
+- The next operational steps are git commit/push, Railway deploy, and post-deploy smoke validation.
 
 ## Handoff Summary
 
@@ -105,7 +116,9 @@ Approval status: Safe for low-risk local edits and non-destructive validation. N
 - Pipeline now exposes clickable stage headers, a stage detail page with tabular opportunity view, and two stage-level charts for counts and potential.
 - Customer detail now shows yearly ABRA revenues for the current year plus the two previous years, highlights the current year, and evaluates current-year plan progress when a plan is defined.
 - Main web pages were adjusted for mobile browser use by removing rigid desktop grids and wrapping wide content in responsive containers.
+- Customer list now returns and renders `currentYearRevenue` plus `previousYearRevenue` instead of a single revenue column.
+- Opportunity tasks can now be toggled from done back to not done through the same API route and UI checkbox.
 
 ## Next Recommended Action
 
-- Run the new DB migrations in a confirmed local disposable environment, then smoke-test visit creation and customer detail against real API data.
+- Push the validated change set on `main`, deploy both Railway services, and run a non-mutating production smoke check for API health, login, customer list payload shape, and web availability.
