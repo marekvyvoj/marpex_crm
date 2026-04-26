@@ -37,8 +37,8 @@ export function DashboardPage() {
   if (isLoading || !data) return <p className="text-gray-400 text-sm">Načítavam dashboard…</p>;
 
   return (
-    <div>
-      <div className="flex items-center gap-3 mb-6">
+    <div className="space-y-6">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
         <h2 className="text-xl font-bold">Dashboard</h2>
         <span className={`text-sm font-bold px-3 py-1 rounded-full ${semaphoreColors[data.semaphore]}`}>
           {data.semaphore}
@@ -46,7 +46,7 @@ export function DashboardPage() {
       </div>
 
       {/* KPI Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard label="Zákazníci" value={String(data.customerCount)} />
         <KpiCard label="Pipeline total" value={`€ ${fmt(data.totalPipeline)}`} />
         <KpiCard label="Weighted pipeline" value={`€ ${fmt(data.weightedPipeline)}`} />
@@ -69,31 +69,33 @@ export function DashboardPage() {
       {data.top10.length === 0 ? (
         <p className="text-gray-400 text-sm">Žiadne otvorené príležitosti.</p>
       ) : (
-        <table className="w-full bg-white rounded-lg border border-gray-200 text-sm mb-6">
-          <thead>
-            <tr className="border-b border-gray-200 text-left text-gray-500">
-              <th className="px-3 py-2">Názov</th>
-              <th className="px-3 py-2 text-right">Hodnota</th>
-              <th className="px-3 py-2">Fáza</th>
-              <th className="px-3 py-2">Next step</th>
-              <th className="px-3 py-2">Deadline</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.top10.map((o) => (
-              <tr key={o.id} className={`border-b border-gray-100 ${o.stagnant ? "bg-red-50" : "hover:bg-gray-50"}`}>
-                <td className="px-3 py-2">
-                  <p className="font-medium">{o.title}</p>
-                  <p className="text-xs text-gray-400">{o.customerName}</p>
-                </td>
-                <td className="px-3 py-2 text-right">€ {fmt(o.value)}</td>
-                <td className="px-3 py-2">{o.stage}</td>
-                <td className="px-3 py-2 truncate max-w-[200px]">{o.nextStepSummary}</td>
-                <td className="px-3 py-2">{o.nextStepDeadline}</td>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[760px] bg-white rounded-lg border border-gray-200 text-sm">
+            <thead>
+              <tr className="border-b border-gray-200 text-left text-gray-500">
+                <th className="px-3 py-2">Názov</th>
+                <th className="px-3 py-2 text-right">Hodnota</th>
+                <th className="px-3 py-2">Fáza</th>
+                <th className="px-3 py-2">Next step</th>
+                <th className="px-3 py-2">Deadline</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {data.top10.map((o) => (
+                <tr key={o.id} className={`border-b border-gray-100 ${o.stagnant ? "bg-red-50" : "hover:bg-gray-50"}`}>
+                  <td className="px-3 py-2">
+                    <p className="font-medium">{o.title}</p>
+                    <p className="text-xs text-gray-400">{o.customerName}</p>
+                  </td>
+                  <td className="px-3 py-2 text-right">€ {fmt(o.value)}</td>
+                  <td className="px-3 py-2">{o.stage}</td>
+                  <td className="px-3 py-2 truncate max-w-[200px]">{o.nextStepSummary}</td>
+                  <td className="px-3 py-2">{o.nextStepDeadline}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {/* Lost reasons */}

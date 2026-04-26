@@ -36,3 +36,8 @@
 
 - Decision: Treat migrations, seed commands, deployment-affecting commands, and auth or env rollout work as high-risk operations that require explicit user approval or an explicitly confirmed local disposable target.
 - Why: The reviewer passes agreed that the initial workflow was too permissive for mutating actions with production or data risk.
+
+### Model Customer Plan As Current-Year Fields For Now
+
+- Decision: Implement customer plan tracking as `annualRevenuePlan` plus `annualRevenuePlanYear` directly on the `customers` table and evaluate progress only when the stored year matches the current year.
+- Why: The request required current-year progress against ABRA actuals, but the repo had no existing yearly plan model or ABRA plan source. This keeps the change small and usable now while leaving room for a later dedicated yearly-plan table if historical planning becomes necessary.

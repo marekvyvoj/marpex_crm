@@ -1,9 +1,9 @@
 # Session State
 
 Last updated: 2026-04-26
-Current task: Repository AI workflow setup
-Current phase: Reviewed and tightened; manual checks remain
-Approval status: Safe for low-risk local workflow use. Not pre-approved for autonomous high-risk operations.
+Current task: Visits detail, mobile UX, pipeline stage detail view, and customer yearly revenue split
+Current phase: Implemented and validated locally; DB migration execution still pending
+Approval status: Safe for low-risk local edits and non-destructive validation. Not pre-approved for DB-mutating commands.
 
 ## Repository Discovery
 
@@ -77,6 +77,13 @@ Approval status: Safe for low-risk local workflow use. Not pre-approved for auto
 - Confirmed live services `marpex_crm`, `Postgres`, and `web` in project `ravishing-flow`
 - Confirmed from live build logs that API uses the `06_IMPLEMENTATION` workspace on Node `22.22.2`, while web uses `06_IMPLEMENTATION/apps/web/Dockerfile` on `node:22-alpine`
 - No application code build or test command was needed. Validation for this follow-up task came from Railway CLI inspection plus workspace checks on the edited docs and config files.
+- `cd 06_IMPLEMENTATION && npm -w packages/domain run build` after the visit schema change: passed.
+- `cd 06_IMPLEMENTATION && npx vitest run tests/web/visits-page.spec.tsx tests/web/visit-detail-page.spec.tsx tests/web/customer-detail-page.spec.tsx --config vitest.phase5.config.ts`: passed.
+- `cd 06_IMPLEMENTATION && npx vitest run tests/web/pipeline-page.spec.tsx --config vitest.phase5.config.ts`: passed.
+- `cd 06_IMPLEMENTATION && npm -w packages/domain run build` after the customer schema change: passed.
+- `cd 06_IMPLEMENTATION && npx vitest run tests/web/customer-detail-page.spec.tsx --config vitest.phase5.config.ts`: passed.
+- `cd 06_IMPLEMENTATION && npx vitest run tests/web/layout.spec.tsx tests/web/import-page.spec.tsx tests/web/report-page.spec.tsx tests/web/users-page.spec.tsx --config vitest.phase5.config.ts`: passed.
+- `cd 06_IMPLEMENTATION && npm run typecheck`: passed.
 
 ## Review Results
 
@@ -88,16 +95,17 @@ Approval status: Safe for low-risk local workflow use. Not pre-approved for auto
 
 ## Active Blockers And Manual Confirmation
 
-- The original Docker service, Node baseline, and Railway deployment-path questions were resolved on 2026-04-26 and synced into the docs.
-- No remaining blocker is required for the AI workflow setup itself; follow-up Railway doc cleanup is now maintenance work rather than an unresolved setup question.
+- Added migrations `06_IMPLEMENTATION/apps/api/drizzle/0004_visit_notes.sql` and `06_IMPLEMENTATION/apps/api/drizzle/0005_customer_annual_plan.sql`, but they were not executed because no explicit approval or disposable DB target was provided.
+- Visit dictation on mobile depends on browser support for `SpeechRecognition` or `webkitSpeechRecognition`; unsupported browsers fall back to normal text input or OS keyboard dictation.
+- Customer annual plan is currently modeled as a single current-year amount plus year stamp on the customer record. If the product needs multi-year plan history or ABRA-driven plan import, this should move to a dedicated table or import flow.
 
 ## Handoff Summary
 
-- The repository-specific AI workflow scaffold is in place under `.github/`, `.ai/`, and `AGENTS.md`.
-- Real workspace prompts live in `.github/prompts/`; `.ai/prompts/` are copy-paste templates and historical references.
-- The legacy root `.instructions.md` was reduced to a compatibility pointer so it no longer carries stale product or architecture rules.
-- Railway production verification confirmed Node 22 and the current API plus web deployment paths.
+- Visits now support persistent free-text notes, mobile dictation, clickable list/detail navigation, and a dedicated detail page.
+- Pipeline now exposes clickable stage headers, a stage detail page with tabular opportunity view, and two stage-level charts for counts and potential.
+- Customer detail now shows yearly ABRA revenues for the current year plus the two previous years, highlights the current year, and evaluates current-year plan progress when a plan is defined.
+- Main web pages were adjusted for mobile browser use by removing rigid desktop grids and wrapping wide content in responsive containers.
 
 ## Next Recommended Action
 
-- Use the workspace prompts for the next implementation task. Keep Railway verification as the source of truth if deployment docs drift again.
+- Run the new DB migrations in a confirmed local disposable environment, then smoke-test visit creation and customer detail against real API data.

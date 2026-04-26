@@ -22,7 +22,7 @@ export function Layout() {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 md:flex-row">
       {/* Sidebar */}
-      <aside className="w-full bg-white border-b border-gray-200 p-4 md:w-56 md:border-b-0 md:border-r md:flex-shrink-0 md:flex md:flex-col">
+      <aside className="sticky top-0 z-20 w-full bg-white border-b border-gray-200 p-3 shadow-sm md:static md:w-56 md:border-b-0 md:border-r md:p-4 md:shadow-none md:flex-shrink-0 md:flex md:flex-col">
         <div className="mb-3 flex items-center justify-between px-2 md:mb-6 md:block md:px-0">
           <h1 className="text-lg font-bold">Marpex CRM</h1>
           <p className="text-xs text-gray-500 md:hidden">{user.name}</p>
@@ -56,7 +56,7 @@ export function Layout() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-auto p-4 md:p-6">
+      <main className="flex-1 overflow-auto p-3 sm:p-4 md:p-6">
         <Outlet />
       </main>
     </div>

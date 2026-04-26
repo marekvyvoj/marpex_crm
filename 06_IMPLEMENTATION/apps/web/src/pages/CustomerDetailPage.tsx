@@ -9,6 +9,8 @@ interface Customer {
   name: string;
   segment: string;
   currentRevenue: string | null;
+  annualRevenuePlan: string | null;
+  annualRevenuePlanYear: number | null;
   potential: string | null;
   shareOfWallet: number | null;
   strategicCategory: string | null;
@@ -30,9 +32,12 @@ interface Visit {
   date: string;
   visitGoal: string;
   result: string;
+  customerNeed: string;
+  notes: string | null;
   nextStep: string;
   nextStepDeadline: string;
   opportunityCreated: boolean;
+  opportunityType?: "project" | "service" | "cross_sell" | null;
   potentialEur: string;
   lateFlag: boolean;
 }
@@ -93,11 +98,22 @@ function fmt(n: string | null) {
   return `€ ${Number(n).toLocaleString("sk-SK")}`;
 }
 
+function getYearProgress(date: Date) {
+  const year = date.getFullYear();
+  const start = new Date(year, 0, 0);
+  const current = new Date(year, date.getMonth(), date.getDate());
+  const diff = current.getTime() - start.getTime();
+  const daysElapsed = Math.floor(diff / 86_400_000);
+  const isLeapYear = new Date(year, 1, 29).getMonth() === 1;
+  return Number(((daysElapsed / (isLeapYear ? 366 : 365)) * 100).toFixed(1));
+}
+
 export function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const qc = useQueryClient();
   const [tab, setTab] = useState<Tab>("contacts");
   const [editMode, setEditMode] = useState(false);
+  const currentYear = new Date().getFullYear();
 
   // Customer
   const { data: customer, isLoading } = useQuery<Customer>({
@@ -179,11 +195,35 @@ export function CustomerDetailPage() {
     return <p className="text-gray-400 text-sm">Načítavam…</p>;
   }
 
+  const revenueByYear = new Map(abraRevenues.map((item) => [item.year, item]));
+  const revenueYears = [currentYear, currentYear - 1, currentYear - 2];
+  const currentYearRevenue = Number(revenueByYear.get(currentYear)?.totalAmount ?? 0);
+  const currentYearPlan = customer.annualRevenuePlanYear === currentYear && customer.annualRevenuePlan
+    ? Number(customer.annualRevenuePlan)
+    : null;
+  const planProgress = currentYearPlan && currentYearPlan > 0
+    ? Number(((currentYearRevenue / currentYearPlan) * 100).toFixed(1))
+    : null;
+  const elapsedYearProgress = getYearProgress(new Date());
+  const planDelta = planProgress !== null ? Number((planProgress - elapsedYearProgress).toFixed(1)) : null;
+  let planStatus: { label: string; tone: "green" | "amber" | "red" } | null = null;
+  if (planProgress !== null && planDelta !== null) {
+    if (planDelta >= 0) {
+      planStatus = { label: "Plán sa plní", tone: "green" };
+    } else if (planDelta >= -5) {
+      planStatus = { label: "Tesne za plánom", tone: "amber" };
+    } else {
+      planStatus = { label: "Za plánom", tone: "red" };
+    }
+  }
+
   function startEdit() {
     setEditForm({
       name: customer!.name,
       segment: customer!.segment,
       currentRevenue: customer!.currentRevenue ?? undefined,
+      annualRevenuePlan: customer!.annualRevenuePlan ?? undefined,
+      annualRevenuePlanYear: customer!.annualRevenuePlanYear ?? undefined,
       potential: customer!.potential ?? undefined,
       strategicCategory: customer!.strategicCategory ?? undefined,
     } as any);
@@ -197,6 +237,15 @@ export function CustomerDetailPage() {
     if (editForm.segment) body.segment = editForm.segment;
     if ((editForm as any).currentRevenue !== undefined)
       body.currentRevenue = Number((editForm as any).currentRevenue) || undefined;
+    if ((editForm as any).annualRevenuePlan !== undefined) {
+      if ((editForm as any).annualRevenuePlan === "") {
+        body.annualRevenuePlan = null;
+        body.annualRevenuePlanYear = null;
+      } else {
+        body.annualRevenuePlan = Number((editForm as any).annualRevenuePlan) || 0;
+        body.annualRevenuePlanYear = currentYear;
+      }
+    }
     if ((editForm as any).potential !== undefined)
       body.potential = Number((editForm as any).potential) || undefined;
     if ((editForm as any).strategicCategory)
@@ -215,7 +264,7 @@ export function CustomerDetailPage() {
 
       {/* Customer header */}
       {editMode ? (
-        <form onSubmit={submitEdit} className="bg-white border border-gray-200 rounded-lg p-4 mb-6 grid grid-cols-3 gap-3">
+        <form onSubmit={submitEdit} className="bg-white border border-gray-200 rounded-lg p-4 mb-6 grid grid-cols-1 gap-3 md:grid-cols-3">
           <input
             className="border border-gray-300 rounded px-3 py-2 text-sm col-span-3"
             placeholder="Názov firmy"
@@ -248,6 +297,14 @@ export function CustomerDetailPage() {
           <input
             type="number"
             min={0}
+            placeholder={`Plán tržieb ${currentYear} €`}
+            className="border border-gray-300 rounded px-3 py-2 text-sm"
+            value={(editForm as any).annualRevenuePlan ?? ""}
+            onChange={(e) => setEditForm((f) => ({ ...f, annualRevenuePlan: e.target.value } as any))}
+          />
+          <input
+            type="number"
+            min={0}
             placeholder="Potenciál €"
             className="border border-gray-300 rounded px-3 py-2 text-sm"
             value={(editForm as any).potential ?? ""}
@@ -259,14 +316,14 @@ export function CustomerDetailPage() {
           </div>
         </form>
       ) : (
-        <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6 flex items-start justify-between">
+        <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
             <h2 className="text-xl font-bold mb-1">{customer.name}</h2>
-            <div className="flex gap-4 text-sm text-gray-600">
+            <div className="flex flex-wrap gap-4 text-sm text-gray-600">
               <span>Segment: <strong>{customer.segment}</strong></span>
               {customer.strategicCategory && <span>Kategória: <strong>{customer.strategicCategory}</strong></span>}
-              <span>Revenue: <strong>{fmt(customer.currentRevenue)}</strong></span>
               <span>Potenciál: <strong>{fmt(customer.potential)}</strong></span>
+              {currentYearPlan && <span>Plán {currentYear}: <strong>{fmt(String(currentYearPlan))}</strong></span>}
               {customer.shareOfWallet != null && <span>SoW: <strong>{customer.shareOfWallet} %</strong></span>}
             </div>
           </div>
@@ -274,8 +331,55 @@ export function CustomerDetailPage() {
         </div>
       )}
 
+      <div className="grid grid-cols-1 gap-3 mb-6 lg:grid-cols-3">
+        {revenueYears.map((year) => {
+          const revenue = revenueByYear.get(year);
+          const isCurrentYear = year === currentYear;
+          const revenueText = revenue ? fmt(revenue.totalAmount) : "–";
+          const cardClass = isCurrentYear
+            ? "border-blue-200 bg-blue-50"
+            : "border-gray-200 bg-white";
+          const titleClass = isCurrentYear ? "text-blue-700" : "text-gray-500";
+          const valueClass = isCurrentYear ? "text-blue-900" : "text-gray-900";
+
+          return (
+            <div key={year} className={`rounded-2xl border p-4 shadow-sm ${cardClass}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className={`text-xs uppercase tracking-[0.2em] ${titleClass}`}>Tržby {year}</p>
+                  <p className={`mt-2 text-2xl font-bold ${valueClass}`}>{revenueText}</p>
+                  <p className="mt-1 text-xs text-gray-500">{revenue ? `${revenue.invoiceCount} faktúr` : "Bez dát z ABRA"}</p>
+                </div>
+                {isCurrentYear && <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-blue-700">Aktuálny rok</span>}
+              </div>
+
+              {isCurrentYear && currentYearPlan && planProgress !== null && planStatus && (
+                <div className="mt-4 rounded-xl bg-white/80 p-3">
+                  <div className="flex items-center justify-between gap-3 text-xs">
+                    <span className="text-gray-500">Plnenie plánu</span>
+                    <span className={`font-semibold ${planStatus.tone === "green" ? "text-green-700" : planStatus.tone === "amber" ? "text-amber-700" : "text-red-700"}`}>
+                      {planStatus.label}
+                    </span>
+                  </div>
+                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className={`h-full rounded-full ${planStatus.tone === "green" ? "bg-green-500" : planStatus.tone === "amber" ? "bg-amber-500" : "bg-red-500"}`}
+                      style={{ width: `${Math.min(planProgress, 100)}%` }}
+                    />
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
+                    <span>{planProgress.toFixed(1)} % z plánu {fmt(String(currentYearPlan))}</span>
+                    <span>Tempo roka: {elapsedYearProgress.toFixed(1)} %</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
       {/* KPI strip */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
+      <div className="grid grid-cols-1 gap-3 mb-6 sm:grid-cols-3">
         <div className="bg-white border border-gray-200 rounded-lg p-3 text-center">
           <p className="text-2xl font-bold text-blue-600">{contacts.length}</p>
           <p className="text-xs text-gray-500">Kontakty</p>
@@ -356,7 +460,8 @@ export function CustomerDetailPage() {
           {contacts.length === 0 ? (
             <p className="text-gray-400 text-sm">Žiadne kontakty.</p>
           ) : (
-            <table className="w-full bg-white border border-gray-200 rounded-lg text-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] bg-white border border-gray-200 rounded-lg text-sm">
               <thead>
                 <tr className="border-b border-gray-200 text-left text-gray-500">
                   <th className="px-4 py-2">Meno</th>
@@ -377,7 +482,8 @@ export function CustomerDetailPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </div>
           )}
         </div>
       )}
@@ -387,30 +493,57 @@ export function CustomerDetailPage() {
           {visits.length === 0 ? (
             <p className="text-gray-400 text-sm">Žiadne návštevy.</p>
           ) : (
-            <table className="w-full bg-white border border-gray-200 rounded-lg text-sm">
-              <thead>
-                <tr className="border-b border-gray-200 text-left text-gray-500">
-                  <th className="px-4 py-2">Dátum</th>
-                  <th className="px-4 py-2">Cieľ</th>
-                  <th className="px-4 py-2">Výsledok</th>
-                  <th className="px-4 py-2 text-right">Potenciál</th>
-                  <th className="px-4 py-2">Príležitosť</th>
-                  <th className="px-4 py-2">Ďalší krok</th>
-                </tr>
-              </thead>
-              <tbody>
+            <>
+              <div className="space-y-3 md:hidden">
                 {visits.map((v) => (
-                  <tr key={v.id} className={`border-b border-gray-100 ${v.lateFlag ? "bg-red-50" : ""}`}>
-                    <td className="px-4 py-2 whitespace-nowrap">{v.date}</td>
-                    <td className="px-4 py-2 max-w-xs truncate">{v.visitGoal}</td>
-                    <td className="px-4 py-2 max-w-xs truncate">{v.result}</td>
-                    <td className="px-4 py-2 text-right">{fmt(v.potentialEur)}</td>
-                    <td className="px-4 py-2">{v.opportunityCreated ? "✓" : "–"}</td>
-                    <td className="px-4 py-2 max-w-xs truncate text-gray-500">{v.nextStep} <span className="text-xs text-gray-400">({v.nextStepDeadline})</span></td>
-                  </tr>
+                  <Link
+                    key={v.id}
+                    to={`/visits/${v.id}`}
+                    className={`block rounded-2xl border p-4 shadow-sm ${v.lateFlag ? "border-red-200 bg-red-50" : "border-gray-200 bg-white"}`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">{v.date}</p>
+                        <p className="mt-1 text-sm text-gray-700">{v.visitGoal}</p>
+                      </div>
+                      <span className="text-xs text-blue-700">Detail</span>
+                    </div>
+                    <p className="mt-2 line-clamp-2 text-sm text-gray-500">{v.result}</p>
+                    {v.notes && <p className="mt-2 line-clamp-3 text-xs text-slate-600">{v.notes}</p>}
+                    <p className="mt-3 text-xs text-gray-500">{v.nextStep} · {v.nextStepDeadline}</p>
+                  </Link>
                 ))}
-              </tbody>
-            </table>
+              </div>
+
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full bg-white border border-gray-200 rounded-lg text-sm min-w-[760px]">
+                  <thead>
+                    <tr className="border-b border-gray-200 text-left text-gray-500">
+                      <th className="px-4 py-2">Dátum</th>
+                      <th className="px-4 py-2">Cieľ</th>
+                      <th className="px-4 py-2">Výsledok</th>
+                      <th className="px-4 py-2 text-right">Potenciál</th>
+                      <th className="px-4 py-2">Príležitosť</th>
+                      <th className="px-4 py-2">Ďalší krok</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visits.map((v) => (
+                      <tr key={v.id} className={`border-b border-gray-100 ${v.lateFlag ? "bg-red-50" : ""}`}>
+                        <td className="px-4 py-2 whitespace-nowrap">
+                          <Link to={`/visits/${v.id}`} className="font-medium text-blue-600 hover:underline">{v.date}</Link>
+                        </td>
+                        <td className="px-4 py-2 max-w-xs truncate">{v.visitGoal}</td>
+                        <td className="px-4 py-2 max-w-xs truncate">{v.result}</td>
+                        <td className="px-4 py-2 text-right">{fmt(v.potentialEur)}</td>
+                        <td className="px-4 py-2">{v.opportunityCreated ? "✓" : "–"}</td>
+                        <td className="px-4 py-2 max-w-xs truncate text-gray-500">{v.nextStep} <span className="text-xs text-gray-400">({v.nextStepDeadline})</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       )}
@@ -420,7 +553,8 @@ export function CustomerDetailPage() {
           {opps.length === 0 ? (
             <p className="text-gray-400 text-sm">Žiadne príležitosti.</p>
           ) : (
-            <table className="w-full bg-white border border-gray-200 rounded-lg text-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] bg-white border border-gray-200 rounded-lg text-sm">
               <thead>
                 <tr className="border-b border-gray-200 text-left text-gray-500">
                   <th className="px-4 py-2">Názov</th>
@@ -446,7 +580,8 @@ export function CustomerDetailPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </div>
           )}
         </div>
       )}
@@ -477,7 +612,8 @@ export function CustomerDetailPage() {
                   })}
                 </div>
               </div>
-              <table className="w-full bg-white border border-gray-200 rounded-lg text-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[520px] bg-white border border-gray-200 rounded-lg text-sm">
                 <thead>
                   <tr className="border-b border-gray-200 text-left text-gray-500">
                     <th className="px-4 py-2">Rok</th>
@@ -494,7 +630,8 @@ export function CustomerDetailPage() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+                </table>
+              </div>
             </>
           )}
         </div>
@@ -506,7 +643,8 @@ export function CustomerDetailPage() {
           {abraQuotes.length === 0 ? (
             <p className="text-gray-400 text-sm">Žiadne ponuky.</p>
           ) : (
-            <table className="w-full bg-white border border-gray-200 rounded-lg text-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[840px] bg-white border border-gray-200 rounded-lg text-sm">
               <thead>
                 <tr className="border-b border-gray-200 text-left text-gray-500">
                   <th className="px-4 py-2">Číslo dokladu</th>
@@ -531,7 +669,8 @@ export function CustomerDetailPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </div>
           )}
         </div>
       )}
@@ -542,7 +681,8 @@ export function CustomerDetailPage() {
           {abraOrders.length === 0 ? (
             <p className="text-gray-400 text-sm">Žiadne objednávky.</p>
           ) : (
-            <table className="w-full bg-white border border-gray-200 rounded-lg text-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[760px] bg-white border border-gray-200 rounded-lg text-sm">
               <thead>
                 <tr className="border-b border-gray-200 text-left text-gray-500">
                   <th className="px-4 py-2">Číslo dokladu</th>
@@ -565,7 +705,8 @@ export function CustomerDetailPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </div>
           )}
         </div>
       )}

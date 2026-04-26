@@ -2,7 +2,7 @@
 
 ## Active Questions
 
-None currently. The original setup questions were verified on 2026-04-26 via Railway CLI and repo source files.
+- Current-year customer plan is stored directly on the customer record (`annualRevenuePlan`, `annualRevenuePlanYear`). If the product later needs historical multi-year plans or ABRA-sourced plan import, decide whether to replace this with a dedicated yearly plan table.
 
 ## Resolved 2026-04-26
 

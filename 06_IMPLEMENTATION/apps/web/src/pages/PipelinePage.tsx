@@ -18,6 +18,10 @@ interface Opportunity {
 
 interface Customer { id: string; name: string; }
 
+function fmtMoney(value: number) {
+  return `€ ${value.toLocaleString("sk-SK", { maximumFractionDigits: 0 })}`;
+}
+
 export function PipelinePage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -111,13 +115,26 @@ export function PipelinePage() {
       return sum + Number(o.value) * ((stage?.weight ?? 0) / 100);
     }, 0);
 
+  const stageStats = openStages.map((stage) => {
+    const items = oppsByStage(stage.id);
+    const total = items.reduce((sum, item) => sum + Number(item.value), 0);
+    return {
+      ...stage,
+      count: items.length,
+      total,
+    };
+  });
+
+  const maxCount = Math.max(...stageStats.map((item) => item.count), 1);
+  const maxTotal = Math.max(...stageStats.map((item) => item.total), 1);
+
   return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
+    <div className="space-y-5">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-xl font-bold">Pipeline</h2>
           <p className="text-sm text-gray-500">
-            Weighted pipeline: <span className="font-semibold text-gray-800">€ {totalWeighted.toLocaleString("sk-SK", { maximumFractionDigits: 0 })}</span>
+            Weighted pipeline: <span className="font-semibold text-gray-800">{fmtMoney(totalWeighted)}</span>
           </p>
         </div>
         <button
@@ -131,7 +148,7 @@ export function PipelinePage() {
       {showForm && (
         <form
           onSubmit={(e) => { e.preventDefault(); create.mutate(); }}
-          className="bg-white border border-gray-200 rounded-lg p-4 mb-4 grid grid-cols-3 gap-3"
+          className="grid grid-cols-1 gap-3 rounded-2xl border border-gray-200 bg-white p-4 md:grid-cols-3"
         >
           <input placeholder="Názov príležitosti" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required className="input col-span-2" />
           <FilterableSelect
@@ -156,6 +173,70 @@ export function PipelinePage() {
         </form>
       )}
 
+      <div className="grid gap-4 xl:grid-cols-2">
+        <section className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.25em] text-sky-600">Vizualizácia</p>
+              <h3 className="mt-1 text-lg font-semibold text-slate-900">Počet príležitostí podľa fázy</h3>
+            </div>
+            <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">{stageStats.reduce((sum, item) => sum + item.count, 0)} spolu</span>
+          </div>
+          <div className="space-y-3">
+            {stageStats.map((stage) => (
+              <button
+                key={stage.id}
+                type="button"
+                onClick={() => navigate(`/pipeline/stage/${stage.id}`)}
+                className="w-full text-left"
+              >
+                <div className="mb-1 flex items-center justify-between gap-3 text-sm">
+                  <span className="font-medium text-slate-700">{stage.label}</span>
+                  <span className="text-xs font-semibold text-slate-500">{stage.count}</span>
+                </div>
+                <div className="h-3 overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-sky-500 via-cyan-500 to-emerald-400"
+                    style={{ width: `${Math.max((stage.count / maxCount) * 100, stage.count > 0 ? 10 : 0)}%` }}
+                  />
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-[1.5rem] border border-emerald-200 bg-gradient-to-br from-white via-emerald-50 to-lime-50 p-5 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.25em] text-emerald-700">Potenciál</p>
+              <h3 className="mt-1 text-lg font-semibold text-slate-900">Hodnota podľa fázy</h3>
+            </div>
+            <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-emerald-700">{fmtMoney(stageStats.reduce((sum, item) => sum + item.total, 0))}</span>
+          </div>
+          <div className="space-y-4">
+            {stageStats.map((stage) => (
+              <button
+                key={stage.id}
+                type="button"
+                onClick={() => navigate(`/pipeline/stage/${stage.id}`)}
+                className="w-full text-left"
+              >
+                <div className="mb-1 flex items-center justify-between gap-3 text-sm">
+                  <span className="font-medium text-slate-700">{stage.label}</span>
+                  <span className="text-xs font-semibold text-slate-600">{fmtMoney(stage.total)}</span>
+                </div>
+                <div className="h-3 overflow-hidden rounded-full bg-white/70 shadow-inner">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500"
+                    style={{ width: `${Math.max((stage.total / maxTotal) * 100, stage.total > 0 ? 8 : 0)}%` }}
+                  />
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+      </div>
+
       {dndError && (
         <div className="mb-3 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
           {dndError}
@@ -179,12 +260,19 @@ export function PipelinePage() {
               onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverStage(null); }}
               onDrop={(e) => handleDrop(e, stage.id)}
             >
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-medium text-sm">{stage.label}</h3>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  data-testid={`pipeline-stage-link-${stage.id}`}
+                  onClick={() => navigate(`/pipeline/stage/${stage.id}`)}
+                  className="text-left"
+                >
+                  <h3 className="font-medium text-sm text-blue-700 hover:underline">{stage.label}</h3>
+                </button>
                 <span className="text-xs text-gray-400">{stage.weight}%</span>
               </div>
               <p className="text-xs text-gray-500 mb-3">
-                {stageOpps.length} deal{stageOpps.length !== 1 && "s"} · € {stageTotal.toLocaleString("sk-SK", { maximumFractionDigits: 0 })}
+                {stageOpps.length} príležitostí · {fmtMoney(stageTotal)}
               </p>
 
               <div className="space-y-2">

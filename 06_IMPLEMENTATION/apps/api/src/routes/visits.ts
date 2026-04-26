@@ -83,6 +83,7 @@ export const visitRoutes: FastifyPluginAsync = async (app) => {
         visitGoal: body.visitGoal,
         result: body.result,
         customerNeed: body.customerNeed,
+        notes: body.notes?.trim() || null,
         opportunityCreated: body.opportunityCreated,
         opportunityType: body.opportunityCreated ? body.opportunityType ?? null : null,
         potentialEur: body.potentialEur.toString(),

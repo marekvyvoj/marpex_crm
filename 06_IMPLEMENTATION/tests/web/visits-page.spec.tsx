@@ -37,7 +37,24 @@ describe("VisitsPage", () => {
       }
 
       if (path === "/visits") {
-        return Promise.resolve([]);
+        return Promise.resolve([
+          {
+            id: "visit-row-1",
+            date: "2026-04-25",
+            customerId: selectedCustomer.id,
+            contactId: selectedContact.id,
+            visitGoal: "Prejsť servisný plán",
+            result: "Dohodnutý follow-up",
+            customerNeed: "Rýchlejšia reakcia",
+            notes: "Treba preveriť cenu servisu a SLA.",
+            opportunityType: "service",
+            potentialEur: "4500",
+            competition: "Lokálny partner",
+            nextStep: "Poslať návrh",
+            nextStepDeadline: "2026-04-30",
+            lateFlag: false,
+          },
+        ]);
       }
 
       if (path === `/customers/${selectedCustomer.id}/contacts`) {
@@ -68,5 +85,13 @@ describe("VisitsPage", () => {
 
     const scoped = within(form!);
     expect(scoped.getByRole("option", { name: "Ján Vybraný" })).toBeInTheDocument();
+    expect(scoped.getByRole("button", { name: "Diktovať poznámku" })).toBeInTheDocument();
+  });
+
+  it("shows visits as openable rows with notes preview", async () => {
+    renderWithProviders(<VisitsPage />);
+
+    expect(await screen.findByRole("link", { name: "2026-04-25" })).toHaveAttribute("href", "/visits/visit-row-1");
+    expect(screen.getByText("Treba preveriť cenu servisu a SLA.")).toBeInTheDocument();
   });
 });

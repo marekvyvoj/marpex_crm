@@ -74,6 +74,8 @@ export const customerRoutes: FastifyPluginAsync = async (app) => {
         name: body.name,
         segment: body.segment,
         currentRevenue: body.currentRevenue?.toString() ?? null,
+        annualRevenuePlan: body.annualRevenuePlan != null ? body.annualRevenuePlan.toString() : null,
+        annualRevenuePlanYear: body.annualRevenuePlanYear ?? null,
         potential: body.potential?.toString() ?? null,
         shareOfWallet: body.shareOfWallet ?? null,
         strategicCategory: body.strategicCategory ?? null,
@@ -112,6 +114,8 @@ export const customerRoutes: FastifyPluginAsync = async (app) => {
     if (body.name !== undefined) updateData.name = body.name;
     if (body.segment !== undefined) updateData.segment = body.segment;
     if (body.currentRevenue !== undefined) updateData.currentRevenue = body.currentRevenue.toString();
+    if (body.annualRevenuePlan !== undefined) updateData.annualRevenuePlan = body.annualRevenuePlan != null ? body.annualRevenuePlan.toString() : null;
+    if (body.annualRevenuePlanYear !== undefined) updateData.annualRevenuePlanYear = body.annualRevenuePlanYear;
     if (body.potential !== undefined) updateData.potential = body.potential.toString();
     if (body.shareOfWallet !== undefined) updateData.shareOfWallet = body.shareOfWallet;
     if (body.strategicCategory !== undefined) updateData.strategicCategory = body.strategicCategory;

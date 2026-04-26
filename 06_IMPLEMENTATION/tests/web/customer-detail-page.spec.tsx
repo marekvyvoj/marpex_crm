@@ -34,6 +34,8 @@ describe("CustomerDetailPage", () => {
       name: "Phase5 Customer Detail",
       segment: "integrator",
       currentRevenue: "120000",
+      annualRevenuePlan: "180000",
+      annualRevenuePlanYear: 2026,
       potential: "330000",
       shareOfWallet: 35,
       strategicCategory: "B",
@@ -61,6 +63,8 @@ describe("CustomerDetailPage", () => {
             ...customer,
             ...body,
             currentRevenue: body.currentRevenue !== undefined ? String(body.currentRevenue) : customer.currentRevenue,
+            annualRevenuePlan: body.annualRevenuePlan !== undefined && body.annualRevenuePlan !== null ? String(body.annualRevenuePlan) : body.annualRevenuePlan === null ? null : customer.annualRevenuePlan,
+            annualRevenuePlanYear: body.annualRevenuePlanYear !== undefined ? body.annualRevenuePlanYear : customer.annualRevenuePlanYear,
             potential: body.potential !== undefined ? String(body.potential) : customer.potential,
             strategicCategory: body.strategicCategory ?? customer.strategicCategory,
           };
@@ -127,6 +131,8 @@ describe("CustomerDetailPage", () => {
       name: "Phase5 Customer Tabs",
       segment: "vyroba",
       currentRevenue: "80000",
+      annualRevenuePlan: "100000",
+      annualRevenuePlanYear: new Date().getFullYear(),
       potential: "120000",
       shareOfWallet: null,
       strategicCategory: "A",
@@ -163,6 +169,16 @@ describe("CustomerDetailPage", () => {
       if (path === "/customers/customer-1/contacts") return contacts;
       if (path === "/customers/customer-1/visits") return visits;
       if (path === "/customers/customer-1/opportunities") return opportunities;
+      if (path === "/customers/customer-1/abra-revenues") {
+        const currentYear = new Date().getFullYear();
+        return [
+          { id: "rev-1", year: currentYear, totalAmount: "40000", invoiceCount: 12 },
+          { id: "rev-2", year: currentYear - 1, totalAmount: "72000", invoiceCount: 20 },
+          { id: "rev-3", year: currentYear - 2, totalAmount: "68000", invoiceCount: 18 },
+        ];
+      }
+      if (path === "/customers/customer-1/abra-quotes") return [];
+      if (path === "/customers/customer-1/abra-orders") return [];
       throw new Error(`Unhandled api call: ${path}`);
     });
 
@@ -171,11 +187,14 @@ describe("CustomerDetailPage", () => {
     expect(await screen.findByRole("heading", { name: "Phase5 Customer Tabs" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Návštevy" }));
-    expect(await screen.findByText("Skontrolovať potreby")).toBeInTheDocument();
-    expect(screen.getByText("Dohodnuté ďalšie stretnutie")).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "2026-04-19" })).toHaveAttribute("href", "/visits/visit-1");
+    expect(screen.getAllByText("Dohodnuté ďalšie stretnutie").length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole("button", { name: "Príležitosti" }));
     expect(await screen.findByRole("link", { name: "Phase5 Opportunity Detail" })).toBeInTheDocument();
     expect(screen.getByText(/stagnuje/)).toBeInTheDocument();
+
+    expect(screen.getByText(`Tržby ${new Date().getFullYear()}`)).toBeInTheDocument();
+    expect(screen.getByText("Plán sa plní")).toBeInTheDocument();
   });
 });

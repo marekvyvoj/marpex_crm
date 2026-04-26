@@ -209,6 +209,26 @@ paths:
                 $ref: '#/components/schemas/Visit'
         '400':
           $ref: '#/components/responses/ApiError'
+  /api/visits/{id}:
+    get:
+      tags: [Visits]
+      summary: Get single visit
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Visit detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Visit'
+        '404':
+          $ref: '#/components/responses/ApiError'
   /api/opportunities:
     get:
       tags: [Opportunities]
@@ -483,6 +503,21 @@ components:
           type: string
         segment:
           type: string
+        currentRevenue:
+          type: string
+          nullable: true
+        annualRevenuePlan:
+          type: string
+          nullable: true
+        annualRevenuePlanYear:
+          type: integer
+          nullable: true
+        potential:
+          type: string
+          nullable: true
+        shareOfWallet:
+          type: integer
+          nullable: true
         strategicCategory:
           type: string
           nullable: true
@@ -492,20 +527,41 @@ components:
         id:
           type: string
           format: uuid
+        date:
+          type: string
+          format: date
         customerId:
+          type: string
+          format: uuid
+        contactId:
           type: string
           format: uuid
         visitGoal:
           type: string
         result:
           type: string
+        customerNeed:
+          type: string
+        notes:
+          type: string
+          nullable: true
+        opportunityCreated:
+          type: boolean
+        opportunityType:
+          type: string
+          nullable: true
+          enum: [project, service, cross_sell]
         potentialEur:
+          type: string
+        competition:
           type: string
         nextStep:
           type: string
         nextStepDeadline:
           type: string
           format: date
+        lateFlag:
+          type: boolean
     VisitInput:
       type: object
       required:
@@ -536,6 +592,9 @@ components:
           type: string
         customerNeed:
           type: string
+        notes:
+          type: string
+          nullable: true
         opportunityCreated:
           type: boolean
         opportunityType:

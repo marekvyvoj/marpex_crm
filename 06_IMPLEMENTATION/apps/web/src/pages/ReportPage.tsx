@@ -54,11 +54,11 @@ export function ReportPage() {
   const totalVisits = rows.reduce((s, r) => s + r.visitCount, 0);
 
   return (
-    <div>
+    <div className="space-y-6">
       <h2 className="text-xl font-bold mb-5">Report obchodníkov</h2>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div className="bg-white border border-gray-200 rounded-lg p-3 text-center">
           <p className="text-xl font-bold text-blue-600">{totalVisits}</p>
           <p className="text-xs text-gray-500">Návštevy celkom</p>

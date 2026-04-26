@@ -2,6 +2,21 @@
 
 ## 2026-04-26
 
+### Visit Detail, Mobile UX, Pipeline Stage View, Revenue Split
+
+- Inspected the owning web pages for visits, customer detail, pipeline, layout, and opportunity detail.
+- Verified that API already exposes `GET /visits/:id`, but the web app has no visit detail route or clickable visit rows yet.
+- Verified that visit schema and DB currently lack a dedicated free-text notes field.
+- Verified that customer data has ABRA yearly revenues for the last three years but no current-year customer plan field.
+- Verified that pipeline cards are clickable, while stage columns have no detail view or chart summary.
+- Confirmed that mobile layout is only partially responsive and will require page-level responsive treatment.
+- Implemented persistent visit notes, a dedicated visit detail page, mobile dictation for visit notes, and clickable visit rows from both Visits and Customer Detail.
+- Implemented clickable pipeline stage headers, stage detail routing, and stage charts for opportunity counts and pipeline value.
+- Implemented customer current-year plan storage plus three-year ABRA revenue cards with plan-progress status for the current year.
+- Added forward-safe SQL migrations `0004_visit_notes.sql` and `0005_customer_annual_plan.sql` without executing them.
+- Updated OpenAPI for visit detail, visit notes, and customer annual-plan fields.
+- Validated with focused Vitest runs for visits, pipeline, customer detail, layout, import, report, and users, plus a full `npm run typecheck` in `06_IMPLEMENTATION`.
+
 ### Repository AI Workflow Setup
 
 - Read the existing manifests, README, ADRs, deployment docs, and test configs.

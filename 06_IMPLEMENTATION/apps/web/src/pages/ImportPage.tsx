@@ -77,8 +77,8 @@ export function ImportPage() {
   const dataRows = preview.slice(1);
 
   return (
-    <div className="max-w-4xl">
-      <div className="flex items-center justify-between mb-4">
+    <div className="max-w-4xl space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-xl font-bold">Import zákazníkov z CSV</h2>
         <button onClick={loadExample} className="text-sm text-blue-600 hover:underline">
           Načítať príklad
@@ -88,7 +88,7 @@ export function ImportPage() {
       {/* Format description */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-5 text-sm text-blue-800">
         <p className="font-medium mb-1">Formát CSV (prvý riadok = hlavička):</p>
-        <code className="text-xs bg-blue-100 px-2 py-1 rounded block">
+        <code className="block overflow-x-auto whitespace-nowrap rounded bg-blue-100 px-2 py-1 text-xs">
           name, segment, category, currentRevenue, potential, contactFirstName, contactLastName, contactRole, contactEmail, contactPhone
         </code>
         <p className="mt-2 text-xs">
@@ -99,7 +99,7 @@ export function ImportPage() {
       </div>
 
       {/* File upload */}
-      <div className="mb-4 flex items-center gap-3">
+      <div className="mb-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
         <label className="cursor-pointer bg-white border border-gray-300 rounded px-4 py-2 text-sm hover:bg-gray-50">
           📁 Vybrať .csv súbor
           <input ref={fileRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleFile} />
@@ -157,7 +157,7 @@ export function ImportPage() {
       {result && (
         <div className="mt-4 bg-white border border-gray-200 rounded-lg px-5 py-4">
           <p className="font-semibold mb-2">Výsledok importu</p>
-          <div className="flex gap-6 text-sm mb-3">
+          <div className="mb-3 flex flex-wrap gap-4 text-sm">
             <span className="text-gray-600">Celkovo: <strong>{result.total}</strong></span>
             <span className="text-green-700">Importovaných: <strong>{result.imported}</strong></span>
             {result.errors > 0 && <span className="text-red-600">Chýb: <strong>{result.errors}</strong></span>}

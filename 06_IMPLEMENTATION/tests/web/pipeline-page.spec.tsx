@@ -2,7 +2,9 @@ import React from "react";
 import "./setup.ts";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Route, Routes } from "react-router-dom";
 import { PipelinePage } from "../../apps/web/src/pages/PipelinePage.tsx";
+import { PipelineStageDetailPage } from "../../apps/web/src/pages/PipelineStageDetailPage.tsx";
 import { renderWithProviders } from "./helpers/render.tsx";
 
 const apiMock = vi.fn();
@@ -138,5 +140,84 @@ describe("PipelinePage", () => {
 
     await waitFor(() => expect(navigateMock).toHaveBeenCalledWith("/pipeline/opportunity-1?stage=quote_delivered"));
     expect(screen.getByText("Fáza vyžaduje vyplnenie gate formulára. Otváram detail príležitosti.")).toBeInTheDocument();
+  });
+
+  it("opens the stage detail view when clicking a stage header", async () => {
+    opportunities = [
+      {
+        id: "opportunity-1",
+        title: "Qualified Deal",
+        value: "62000",
+        stage: "qualified",
+        nextStepSummary: "Poslať technický návrh",
+        nextStepDeadline: "2026-05-08",
+        stagnant: false,
+        customerId: "customer-1",
+      },
+    ];
+
+    renderWithProviders(<PipelinePage />);
+
+    await screen.findByText("Qualified Deal");
+
+    fireEvent.click(screen.getByTestId("pipeline-stage-link-qualified"));
+
+    expect(navigateMock).toHaveBeenCalledWith("/pipeline/stage/qualified");
+    expect(screen.getByText("Počet príležitostí podľa fázy")).toBeInTheDocument();
+    expect(screen.getByText("Hodnota podľa fázy")).toBeInTheDocument();
+  });
+});
+
+describe("PipelineStageDetailPage", () => {
+  beforeEach(() => {
+    apiMock.mockReset();
+    apiMock.mockImplementation((path: string) => {
+      if (path === "/customers") {
+        return Promise.resolve(customers);
+      }
+
+      if (path === "/opportunities") {
+        return Promise.resolve([
+          {
+            id: "opportunity-1",
+            title: "Qualified Deal",
+            value: "62000",
+            stage: "qualified",
+            nextStepSummary: "Poslať technický návrh",
+            nextStepDeadline: "2026-05-08",
+            stagnant: true,
+            customerId: "customer-1",
+          },
+          {
+            id: "opportunity-2",
+            title: "Other Deal",
+            value: "15000",
+            stage: "identified_need",
+            nextStepSummary: "Prvý call",
+            nextStepDeadline: "2026-05-10",
+            stagnant: false,
+            customerId: "customer-1",
+          },
+        ]);
+      }
+
+      return Promise.resolve([]);
+    });
+  });
+
+  it("shows only opportunities for the selected stage", async () => {
+    renderWithProviders(
+      <Routes>
+        <Route path="/pipeline" element={<div>Pipeline route</div>} />
+        <Route path="/pipeline/:id" element={<div>Opportunity route</div>} />
+        <Route path="/pipeline/stage/:stageId" element={<PipelineStageDetailPage />} />
+      </Routes>,
+      { route: "/pipeline/stage/qualified" },
+    );
+
+    expect(await screen.findByRole("heading", { name: "Kvalifikovaná príležitosť" })).toBeInTheDocument();
+    expect(screen.getAllByText("Qualified Deal").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Acme a.s.").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Other Deal")).not.toBeInTheDocument();
   });
 });

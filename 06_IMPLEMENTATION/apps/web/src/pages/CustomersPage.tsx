@@ -57,8 +57,8 @@ export function CustomersPage() {
   });
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <h2 className="text-xl font-bold">Zákazníci</h2>
         <button
           onClick={() => setShowForm(!showForm)}
@@ -69,13 +69,13 @@ export function CustomersPage() {
       </div>
 
       {/* Filter bar */}
-      <div className="flex gap-2 mb-4">
+      <div className="flex flex-col gap-2 md:flex-row">
         <input
           type="search"
           placeholder="Hľadať podľa názvu…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="border border-gray-300 rounded px-3 py-1.5 text-sm flex-1 max-w-xs"
+          className="border border-gray-300 rounded px-3 py-1.5 text-sm flex-1 md:max-w-xs"
         />
         <select
           value={filterSegment}
@@ -106,7 +106,7 @@ export function CustomersPage() {
       {showForm && (
         <form
           onSubmit={(e) => { e.preventDefault(); create.mutate(); }}
-          className="bg-white border border-gray-200 rounded-lg p-4 mb-4 grid grid-cols-3 gap-3"
+          className="grid grid-cols-1 gap-3 rounded-lg border border-gray-200 bg-white p-4 md:grid-cols-3"
         >
           <input
             placeholder="Názov firmy"
@@ -135,30 +135,32 @@ export function CustomersPage() {
           <p className="text-sm">{(search || filterSegment || filterCategory) ? "Žiadne výsledky pre zadané filtre." : "Žiadni zákazníci. Pridajte prvého."}</p>
         </div>
       ) : (
-        <table className="w-full bg-white rounded-lg border border-gray-200 text-sm">
-          <thead>
-            <tr className="border-b border-gray-200 text-left text-gray-500">
-              <th className="px-4 py-2">Názov</th>
-              <th className="px-4 py-2">Segment</th>
-              <th className="px-4 py-2">Kategória</th>
-              <th className="px-4 py-2 text-right">Revenue</th>
-              <th className="px-4 py-2 text-right">Potenciál</th>
-            </tr>
-          </thead>
-          <tbody>
-            {customers.map((c) => (
-              <tr key={c.id} className="border-b border-gray-100 hover:bg-gray-50">
-                <td className="px-4 py-2 font-medium">
-                  <Link to={`/customers/${c.id}`} className="text-blue-600 hover:underline">{c.name}</Link>
-                </td>
-                <td className="px-4 py-2">{c.segment}</td>
-                <td className="px-4 py-2">{c.strategicCategory || "–"}</td>
-                <td className="px-4 py-2 text-right">{c.currentRevenue ? `€ ${Number(c.currentRevenue).toLocaleString("sk-SK")}` : "–"}</td>
-                <td className="px-4 py-2 text-right">{c.potential ? `€ ${Number(c.potential).toLocaleString("sk-SK")}` : "–"}</td>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[720px] bg-white rounded-lg border border-gray-200 text-sm">
+            <thead>
+              <tr className="border-b border-gray-200 text-left text-gray-500">
+                <th className="px-4 py-2">Názov</th>
+                <th className="px-4 py-2">Segment</th>
+                <th className="px-4 py-2">Kategória</th>
+                <th className="px-4 py-2 text-right">Revenue</th>
+                <th className="px-4 py-2 text-right">Potenciál</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {customers.map((c) => (
+                <tr key={c.id} className="border-b border-gray-100 hover:bg-gray-50">
+                  <td className="px-4 py-2 font-medium">
+                    <Link to={`/customers/${c.id}`} className="text-blue-600 hover:underline">{c.name}</Link>
+                  </td>
+                  <td className="px-4 py-2">{c.segment}</td>
+                  <td className="px-4 py-2">{c.strategicCategory || "–"}</td>
+                  <td className="px-4 py-2 text-right">{c.currentRevenue ? `€ ${Number(c.currentRevenue).toLocaleString("sk-SK")}` : "–"}</td>
+                  <td className="px-4 py-2 text-right">{c.potential ? `€ ${Number(c.potential).toLocaleString("sk-SK")}` : "–"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

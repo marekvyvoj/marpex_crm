@@ -12,6 +12,7 @@ export const visitSchema = z.object({
   visitGoal: z.string().min(1, "Cieľ návštevy je povinný"),
   result: z.string().min(1, "Výsledok je povinný"),
   customerNeed: z.string().min(1, "Potreba zákazníka je povinná"),
+  notes: z.string().trim().max(5000, "Poznámka je príliš dlhá").optional(),
   opportunityCreated: z.boolean(),
   opportunityType: z.enum(visitOpportunityTypes).optional(),
   potentialEur: z.number().min(0, "Potenciál nesmie byť záporný"),

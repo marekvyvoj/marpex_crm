@@ -175,7 +175,7 @@ export function OpportunityDetailPage() {
   }
 
   return (
-    <div>
+    <div className="space-y-5">
       {/* Breadcrumb */}
       <div className="text-sm text-gray-500 mb-4">
         <Link to="/pipeline" className="hover:underline">Pipeline</Link>
@@ -191,7 +191,7 @@ export function OpportunityDetailPage() {
 
       {/* Header */}
       <div className="bg-white border border-gray-200 rounded-lg p-5 mb-5">
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
             <h2 className="text-xl font-bold mb-1">{opp.title}</h2>
             {customer && (
@@ -221,7 +221,7 @@ export function OpportunityDetailPage() {
             <button
               data-testid="move-stage-button"
               onClick={() => setMoveStageOpen(!moveStageOpen)}
-              className="text-sm bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+              className="text-sm bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 md:self-start"
             >
               Posunúť fázu
             </button>
@@ -230,7 +230,7 @@ export function OpportunityDetailPage() {
 
         {/* Move stage form */}
         {moveStageOpen && !isClosed && (
-          <form onSubmit={submitStageMove} className="mt-4 border-t border-gray-100 pt-4 grid grid-cols-2 gap-3">
+          <form onSubmit={submitStageMove} className="mt-4 grid grid-cols-1 gap-3 border-t border-gray-100 pt-4 md:grid-cols-2">
             <div className="col-span-2">
               {stageError && <p className="text-red-600 text-sm mb-2">{stageError}</p>}
               <select
@@ -285,7 +285,7 @@ export function OpportunityDetailPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         {/* Tasks */}
         <div className="bg-white border border-gray-200 rounded-lg p-4">
           <div className="flex items-center justify-between mb-3">
@@ -303,7 +303,7 @@ export function OpportunityDetailPage() {
                 e.preventDefault();
                 createTask.mutate({ ...taskForm, opportunityId: id });
               }}
-              className="mb-3 grid grid-cols-2 gap-2"
+              className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2"
             >
               <input required placeholder="Popis úlohy" value={taskForm.title}
                 onChange={(e) => setTaskForm((f) => ({ ...f, title: e.target.value }))}
