@@ -53,3 +53,18 @@
 
 - Decision: Implement the salesperson planner by aggregating `nextStepDeadline` values from existing `visits` and open `opportunities`, exposed through `GET /api/dashboard/planner` and rendered in a dedicated `Plán práce` screen plus a dashboard preview.
 - Why: The repository already stores next-step dates in both workflows and already scopes dashboard data by the logged-in user. Reusing that surface delivered the feature without schema changes, duplicate task storage, or a second source of truth.
+
+### Fix Demo Planner Visibility At The Seed Layer
+
+- Decision: Fix planner visibility for demo sales accounts by changing seed ownership distribution and by adding a one-time rebalance script for already-seeded demo data.
+- Why: Live verification showed the planner endpoint was behaving correctly, but the current demo seed excluded `obchodnik1` and `obchodnik2` from seeded visits and opportunities, so those users had almost nothing to test against.
+
+### Add Legacy Safari Bundles In Vite
+
+- Decision: Add `@vitejs/plugin-legacy` to the web build with Safari and iOS Safari targets instead of trying to guess a single runtime API bug.
+- Why: The repository had no strong global Safari runtime culprit in app code, while the Vite build had no legacy browser output at all. A legacy bundle is the smallest broad compatibility hardening for older WebKit clients.
+
+### Keep Demo Rebalance Strictly Bound To Seed Artifacts
+
+- Decision: Require the fixed demo email allowlist in the rebalance script, limit visits and tasks to seed-shaped records, and only rewrite the initial seeded opportunity stage-history author when reassigning owners.
+- Why: The reviewer correctly flagged that a broader mutation could reassign live user data or leave seeded history inconsistent. This keeps the one-time backfill narrowly aligned with what the seed actually created.

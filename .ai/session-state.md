@@ -1,9 +1,9 @@
 # Session State
 
 Last updated: 2026-04-27
-Current task: Salesperson planner view for upcoming next steps, focused validation, docs sync, commit/push, and deploy preparation
-Current phase: Feature implemented, reduced-assurance same-session review completed, and local non-DB validation passed; DB-backed validation and remote steps remain blocked by environment confirmation
-Approval status: User requested commit, push, and deploy, but live-target deployment still needs explicit confirmation of the intended remote environment before execution.
+Current task: Demo-data visibility in the planner plus Safari compatibility hardening
+Current phase: Follow-up fixes implemented, reviewed, and locally validated; deploy plus service-side demo-data backfill remain pending
+Approval status: Code edits and deployment are in scope, but live PostgreSQL mutation still requires an explicit service-side execution step because Railway exposes an internal database hostname that is not reachable from local dry-run commands.
 
 ## Repository Discovery
 
@@ -106,19 +106,24 @@ Approval status: User requested commit, push, and deploy, but live-target deploy
 
 ## Current Execution Notes
 
-- Implemented `GET /api/dashboard/planner` as a salesperson-only endpoint aggregating `nextStepDeadline` from visits and open opportunities.
-- Added the `Plán práce` route, salesperson-only navigation item, and dashboard preview based on the existing dashboard payload.
-- Same-session reviewer findings were applied: dashboard no longer does a second planner fetch, planner errors are surfaced in the UI, and same-day deadlines no longer inflate overdue opportunity counts.
-- `cd 06_IMPLEMENTATION && npx vitest run tests/web/dashboard-page.spec.tsx tests/web/planner-page.spec.tsx tests/web/layout.spec.tsx --config vitest.phase5.config.ts`: passed.
-- `cd 06_IMPLEMENTATION && npm run typecheck`: passed.
-- `cd 07_TEST_SUITE && npm run test:integration -- api.spec.ts`: blocked by missing local PostgreSQL on `localhost:5432` (`ECONNREFUSED`).
+- Live verification showed the planner seed-data issue is ownership-related, not planner logic: `obchodnik1` currently sees only 1 planner item, while `obchodnik3` sees 114.
+- Root cause in `apps/api/src/seed.ts`: demo visits and opportunities were only assigned to manager plus `obchodnik3-6`, excluding `obchodnik1` and `obchodnik2`.
+- Updated future seed distribution to include all sales users, added a dry-run-by-default `db:rebalance-demo-owners` script for existing seeded data, and added a Safari-friendly legacy Vite build for the web app.
+- `cd 06_IMPLEMENTATION && npm install -w apps/web -D @vitejs/plugin-legacy@^6.1.0`: passed.
+- `cd 06_IMPLEMENTATION && npm run typecheck`: passed after the seed script and Safari changes.
+- `cd 06_IMPLEMENTATION && npm -w apps/web run build`: passed and emitted legacy bundles for Safari.
+- `cd 06_IMPLEMENTATION && railway run npm -w apps/api run db:rebalance-demo-owners`: dry-run validation blocked locally because Railway injects `postgres.railway.internal`, which is not resolvable from the local shell.
+- Tightened the rebalance script after reviewer findings: it now requires the full fixed demo account set, limits visits and tasks to seed-shaped records only, updates only the initial seeded opportunity stage-history author, and closes the shared DB pool cleanly.
+- `get_errors` on `apps/api/src/scripts/rebalance-demo-owners.ts`: passed.
+- Same-session reduced-assurance reviewer pass after the fixes found no remaining concrete code defects; residual risk is limited to the live `--write` operation and unverified Safari runtime smoke coverage.
 
 ## Handoff Summary
 
-- Salespeople now have a dedicated `Plán práce` view that groups overdue, today, next-7-days, and later next steps from visits and opportunities, with deep links back to the source records.
-- Sales dashboards now include a personal planner preview without an extra API round-trip.
-- The new planner flow is covered by focused web tests and typecheck, while DB-backed integration confirmation is still pending a local PostgreSQL target.
+- Future demo seeds will populate planner-visible next steps for all salesperson demo accounts, including `obchodnik1`.
+- The web app now builds with Vite legacy bundles targeting older Safari / iOS Safari.
+- Existing live demo data still need a one-time owner rebalance executed from inside the Railway service environment.
+- Safari compatibility is build-validated through legacy bundles, but not yet smoke-tested on an actual Safari or iOS Safari runtime.
 
 ## Next Recommended Action
 
-- Commit the validated planner change locally. If a disposable local DB or explicit deployment target is confirmed, rerun integration coverage and only then proceed with push and deployment.
+- Commit and deploy the seed-distribution and Safari changes, then run a service-side dry run and `--write` of `node dist/scripts/rebalance-demo-owners.js` inside the live `marpex_crm` Railway service if the user still wants existing demo data rebalanced immediately.

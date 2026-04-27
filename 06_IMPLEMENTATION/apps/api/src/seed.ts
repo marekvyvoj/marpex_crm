@@ -144,7 +144,7 @@ async function main() {
       .from(schema.users)
       .where(inArray(schema.users.email, ownerEmails));
     const ownerByEmail = new Map(owners.map((owner) => [owner.email, owner.id]));
-    const demoOwnerEmails = ["manager@marpex.sk", ...salesUsers.slice(2).map((user) => user.email)];
+    const demoOwnerEmails = ["manager@marpex.sk", ...salesUsers.map((user) => user.email)];
     const demoOwnerIds = demoOwnerEmails.map((email) => {
       const ownerId = ownerByEmail.get(email);
 

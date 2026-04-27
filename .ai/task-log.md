@@ -52,6 +52,13 @@
 - Implemented the planner endpoint and web screens, then tightened the slice after review by making the planner salesperson-only, removing the extra dashboard fetch, and surfacing UI error states.
 - Confirmed focused web tests and `cd 06_IMPLEMENTATION && npm run typecheck` passed.
 - Attempted `cd 07_TEST_SUITE && npm run test:integration -- api.spec.ts`, but local PostgreSQL was unavailable on `localhost:5432`, so DB-backed validation remains blocked.
+- Confirmed on the live deploy that `obchodnik1` only sees 1 planner item while `obchodnik3` sees 114, which exposed the demo-owner distribution bug in `src/seed.ts`.
+- Updated future demo seeding to include all sales demo accounts, added a dry-run-by-default demo-owner rebalance script for existing data, and added Vite legacy output for Safari.
+- Confirmed `npm install -w apps/web -D @vitejs/plugin-legacy@^6.1.0`, `npm run typecheck`, and `npm -w apps/web run build` passed.
+- Tried a Railway-backed dry run of the rebalance script, but the injected `postgres.railway.internal` host is not reachable from the local shell, so the live backfill must be run from inside the deployed service environment.
+- Ran a strict review of the rebalance script, then tightened it to require the exact demo owner allowlist, scope visits and tasks to seeded records only, update the initial seeded stage-history author with opportunity owner changes, and close the shared DB pool.
+- Re-ran `get_errors` on the rebalance script and `cd 06_IMPLEMENTATION && npm run typecheck`: both passed.
+- Final reduced-assurance review found no remaining concrete code defects; only the live Railway `--write` execution and Safari runtime smoke test remain as operational checks.
 
 ## Logging Rules
 

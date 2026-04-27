@@ -4,6 +4,8 @@
 
 - Current-year customer plan is stored directly on the customer record (`annualRevenuePlan`, `annualRevenuePlanYear`). If the product later needs historical multi-year plans or ABRA-sourced plan import, decide whether to replace this with a dedicated yearly plan table.
 - User requested push and deployment for the planner feature, but the intended live target for this task still needs explicit reconfirmation before any remote mutation is executed.
+- Existing live demo data still need a one-time owner rebalance from inside the Railway `marpex_crm` service environment, because local `railway run` uses a `postgres.railway.internal` hostname that is not reachable from the workstation shell.
+- Safari compatibility is now build-hardened with legacy bundles, but an actual deployed Safari or iOS Safari smoke run is still pending.
 
 ## Resolved 2026-04-26
 

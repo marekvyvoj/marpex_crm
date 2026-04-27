@@ -3,7 +3,7 @@ import pg from "pg";
 import * as schema from "./schema.js";
 import { requireEnv } from "../lib/env.js";
 
-const pool = new pg.Pool({
+export const pool = new pg.Pool({
   connectionString: requireEnv("DATABASE_URL"),
 });
 
