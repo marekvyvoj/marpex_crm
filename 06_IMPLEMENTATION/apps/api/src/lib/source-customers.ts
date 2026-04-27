@@ -1,6 +1,6 @@
 import { existsSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
-import * as XLSX from "xlsx";
+import XLSX from "xlsx";
 import type { CustomerIndustry, CustomerSegment } from "@marpex/domain";
 
 export interface SourceCustomerRow {

@@ -162,6 +162,9 @@ async function main() {
 
       await tx.delete(schema.tasks).where(inArray(schema.tasks.customerId, customerIds));
       await tx.delete(schema.visits).where(inArray(schema.visits.customerId, customerIds));
+      await tx.delete(schema.abraOrders).where(inArray(schema.abraOrders.customerId, customerIds));
+      await tx.delete(schema.abraQuotes).where(inArray(schema.abraQuotes.customerId, customerIds));
+      await tx.delete(schema.abraRevenues).where(inArray(schema.abraRevenues.customerId, customerIds));
 
       if (opportunityIds.length > 0) {
         await tx.delete(schema.opportunities).where(inArray(schema.opportunities.id, opportunityIds));
