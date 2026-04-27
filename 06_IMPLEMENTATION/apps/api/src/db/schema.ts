@@ -23,6 +23,12 @@ export const customerSegmentEnum = pgEnum("customer_segment", [
   "other",
 ]);
 
+export const customerIndustryEnum = pgEnum("customer_industry", [
+  "potravinarstvo",
+  "oem",
+  "mobile_equipment",
+]);
+
 export const strategicCategoryEnum = pgEnum("strategic_category", [
   "A",
   "B",
@@ -71,7 +77,17 @@ export const customers = pgTable("customers", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: varchar("name", { length: 500 }).notNull(),
   segment: customerSegmentEnum("segment").notNull(),
+  industry: customerIndustryEnum("industry"),
+  ico: varchar("ico", { length: 20 }),
+  dic: varchar("dic", { length: 20 }),
+  icDph: varchar("ic_dph", { length: 20 }),
+  address: varchar("address", { length: 500 }),
+  city: varchar("city", { length: 255 }),
+  postalCode: varchar("postal_code", { length: 20 }),
+  district: varchar("district", { length: 255 }),
+  region: varchar("region", { length: 255 }),
   currentRevenue: numeric("current_revenue", { precision: 14, scale: 2 }),
+  profit: numeric("profit", { precision: 14, scale: 2 }),
   annualRevenuePlan: numeric("annual_revenue_plan", { precision: 14, scale: 2 }),
   annualRevenuePlanYear: integer("annual_revenue_plan_year"),
   potential: numeric("potential", { precision: 14, scale: 2 }),

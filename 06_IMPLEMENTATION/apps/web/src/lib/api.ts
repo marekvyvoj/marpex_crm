@@ -1,10 +1,26 @@
-const API_BASE = import.meta.env.VITE_API_URL || "/api";
+function trimTrailingSlash(value: string) {
+  return value.replace(/\/+$/, "");
+}
+
+export function resolveApiBase(rawBase = import.meta.env.VITE_API_URL || "/api") {
+  const normalizedBase = trimTrailingSlash(rawBase || "/api");
+
+  if (!normalizedBase || normalizedBase === "/api") {
+    return "/api";
+  }
+
+  return normalizedBase.endsWith("/api") ? normalizedBase : `${normalizedBase}/api`;
+}
+
+export function buildApiUrl(path: string, apiBase = resolveApiBase()) {
+  return `${apiBase}${path}`;
+}
 
 export async function api<T = unknown>(
   path: string,
   options?: RequestInit,
 ): Promise<T> {
-  const url = API_BASE === "/api" ? `${API_BASE}${path}` : `${API_BASE}/api${path}`;
+  const url = buildApiUrl(path);
   const res = await fetch(url, {
     credentials: "include",
     headers: { "Content-Type": "application/json", ...options?.headers },

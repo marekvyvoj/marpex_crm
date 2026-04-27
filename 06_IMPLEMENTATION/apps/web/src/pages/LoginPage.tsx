@@ -2,6 +2,20 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../components/AuthProvider.tsx";
 
+function getLoginErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    if (error.message === "Failed to fetch") {
+      return "Prihlásenie zlyhalo. Skontrolujte pripojenie alebo nastavenie API.";
+    }
+
+    if (error.message.trim()) {
+      return error.message;
+    }
+  }
+
+  return "Prihlásenie sa nepodarilo.";
+}
+
 export function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -15,8 +29,8 @@ export function LoginPage() {
     try {
       await login(email, password);
       navigate("/dashboard");
-    } catch {
-      setError("Neplatné prihlasovacie údaje");
+    } catch (error) {
+      setError(getLoginErrorMessage(error));
     }
   }
 

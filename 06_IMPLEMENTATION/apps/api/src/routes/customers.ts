@@ -3,7 +3,7 @@ import { z } from "zod";
 import { eq, desc, ilike, and, inArray, sql, type SQL } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { customers, contacts, visits, opportunities, abraRevenues, abraQuotes, abraOrders } from "../db/schema.js";
-import { customerSchema, contactSchema, customerSegments, strategicCategories } from "@marpex/domain";
+import { customerSchema, contactSchema, customerSegments, customerIndustries, strategicCategories } from "@marpex/domain";
 import { writeAudit } from "../lib/audit.js";
 import { sendError } from "../lib/http.js";
 import { paginationQuerySchema, resolvePagination, setPaginationHeaders } from "../lib/pagination.js";
@@ -11,6 +11,7 @@ import { paginationQuerySchema, resolvePagination, setPaginationHeaders } from "
 const customerListQuerySchema = paginationQuerySchema.extend({
   q: z.string().trim().min(1).optional(),
   segment: z.enum(customerSegments).optional(),
+  industry: z.enum(customerIndustries).optional(),
   category: z.enum(strategicCategories).optional(),
 });
 
@@ -18,7 +19,7 @@ const bodyObjectSchema = z.record(z.string(), z.unknown());
 
 type CustomerListQuery = z.input<typeof customerListQuerySchema>;
 
-async function withRevenueSummary<T extends { id: string }>(rows: T[]) {
+async function withRevenueSummary<T extends { id: string; currentRevenue?: string | null }>(rows: T[]) {
   if (rows.length === 0) {
     return [] as Array<T & { currentYearRevenue: string | null; previousYearRevenue: string | null }>;
   }
@@ -59,7 +60,7 @@ async function withRevenueSummary<T extends { id: string }>(rows: T[]) {
   return rows.map((row) => ({
     ...row,
     ...(revenuesByCustomer.get(row.id) ?? {
-      currentYearRevenue: null,
+      currentYearRevenue: row.currentRevenue ?? null,
       previousYearRevenue: null,
     }),
   }));
@@ -68,10 +69,11 @@ async function withRevenueSummary<T extends { id: string }>(rows: T[]) {
 export const customerRoutes: FastifyPluginAsync = async (app) => {
   // List customers — optional ?q= (name search), ?segment=, ?category=
   app.get<{ Querystring: CustomerListQuery }>("/", async (request, reply) => {
-    const { q, segment, category } = customerListQuerySchema.parse(request.query);
+    const { q, segment, industry, category } = customerListQuerySchema.parse(request.query);
     const conditions: SQL[] = [];
     if (q) conditions.push(ilike(customers.name, `%${q}%`));
     if (segment) conditions.push(eq(customers.segment, segment));
+    if (industry) conditions.push(eq(customers.industry, industry));
     if (category) conditions.push(eq(customers.strategicCategory, category));
     const where = conditions.length > 0 ? and(...conditions) : undefined;
     const pagination = resolvePagination(request.query);
@@ -122,7 +124,17 @@ export const customerRoutes: FastifyPluginAsync = async (app) => {
       .values({
         name: body.name,
         segment: body.segment,
+        industry: body.industry ?? null,
+        ico: body.ico ?? null,
+        dic: body.dic ?? null,
+        icDph: body.icDph ?? null,
+        address: body.address ?? null,
+        city: body.city ?? null,
+        postalCode: body.postalCode ?? null,
+        district: body.district ?? null,
+        region: body.region ?? null,
         currentRevenue: body.currentRevenue?.toString() ?? null,
+        profit: body.profit != null ? body.profit.toString() : null,
         annualRevenuePlan: body.annualRevenuePlan != null ? body.annualRevenuePlan.toString() : null,
         annualRevenuePlanYear: body.annualRevenuePlanYear ?? null,
         potential: body.potential?.toString() ?? null,
@@ -162,7 +174,17 @@ export const customerRoutes: FastifyPluginAsync = async (app) => {
     const updateData: Record<string, unknown> = { updatedAt: new Date() };
     if (body.name !== undefined) updateData.name = body.name;
     if (body.segment !== undefined) updateData.segment = body.segment;
+    if (body.industry !== undefined) updateData.industry = body.industry;
+    if (body.ico !== undefined) updateData.ico = body.ico;
+    if (body.dic !== undefined) updateData.dic = body.dic;
+    if (body.icDph !== undefined) updateData.icDph = body.icDph;
+    if (body.address !== undefined) updateData.address = body.address;
+    if (body.city !== undefined) updateData.city = body.city;
+    if (body.postalCode !== undefined) updateData.postalCode = body.postalCode;
+    if (body.district !== undefined) updateData.district = body.district;
+    if (body.region !== undefined) updateData.region = body.region;
     if (body.currentRevenue !== undefined) updateData.currentRevenue = body.currentRevenue.toString();
+    if (body.profit !== undefined) updateData.profit = body.profit != null ? body.profit.toString() : null;
     if (body.annualRevenuePlan !== undefined) updateData.annualRevenuePlan = body.annualRevenuePlan != null ? body.annualRevenuePlan.toString() : null;
     if (body.annualRevenuePlanYear !== undefined) updateData.annualRevenuePlanYear = body.annualRevenuePlanYear;
     if (body.potential !== undefined) updateData.potential = body.potential.toString();

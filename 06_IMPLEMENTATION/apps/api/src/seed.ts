@@ -8,14 +8,13 @@ import pg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import * as schema from "./db/schema.js";
 import { requireEnv } from "./lib/env.js";
+import { loadSourceCustomers, resolveSegmentForIndustry } from "./lib/source-customers.js";
 
 const databaseUrl = requireEnv("DATABASE_URL");
 const seedSourceSystem = "marpex_demo_seed";
 const salesUserCount = 6;
-const customerCount = 240;
 
 // ABRA demo: seed ABRA data for first N customers
-const abraCustomerCount = 40;
 const abraQuotesPerCustomer = 8;
 const abraOrdersPerCustomer = 6;
 const contactsPerCustomer = 2;
@@ -23,7 +22,6 @@ const visitsPerCustomer = 2;
 const opportunityCount = 120;
 const taskCount = 80;
 
-const customerSegments: Array<(typeof schema.customerSegmentEnum.enumValues)[number]> = ["oem", "vyroba", "integrator", "servis", "other"];
 const strategicCategories: Array<(typeof schema.strategicCategoryEnum.enumValues)[number]> = ["A", "B", "C"];
 const contactRoles: Array<(typeof schema.contactRoleEnum.enumValues)[number]> = ["decision_maker", "influencer", "user"];
 const visitOpportunityTypes: Array<(typeof schema.visitOpportunityTypeEnum.enumValues)[number]> = ["project", "service", "cross_sell"];
@@ -37,9 +35,6 @@ const opportunityStages: Array<(typeof schema.opportunityStageEnum.enumValues)[n
   "won",
   "lost",
 ];
-const companyPrefixes = ["Marpex", "Strojmont", "Techservis", "Proxima", "Nordsteel", "Elektroterm", "Ventor", "Kovotech"];
-const companySuffixes = ["a.s.", "s.r.o.", "Group", "Solutions", "Industries", "Engineering"];
-const cityNames = ["Bratislava", "Nitra", "Trnava", "Žilina", "Košice", "Prešov", "Trenčín", "Banská Bystrica"];
 const firstNames = ["Ján", "Marek", "Peter", "Lucia", "Zuzana", "Michaela", "Tomáš", "Martin", "Roman", "Eva"];
 const lastNames = ["Novák", "Kováč", "Hruška", "Vaško", "Mráz", "Kollár", "Urban", "Šimko", "Kmeť", "Bartoš"];
 const positions = ["Obchodný riaditeľ", "Výrobný manažér", "Technický riaditeľ", "Servisný koordinátor", "Nákupca", "Projektový manažér"];
@@ -76,20 +71,12 @@ function isoTimestamp(offsetDays: number) {
   return date;
 }
 
-function customerName(index: number) {
-  if (index === 1) {
-    return "Demo zákazník a.s.";
-  }
-
-  const prefix = companyPrefixes[(index - 2) % companyPrefixes.length];
-  const city = cityNames[(index + 3) % cityNames.length];
-  const suffix = companySuffixes[(index + 5) % companySuffixes.length];
-  return `${prefix} ${city} ${pad(index)} ${suffix}`;
-}
-
 async function main() {
   const pool = new pg.Pool({ connectionString: databaseUrl });
   const db = drizzle(pool, { schema });
+  const sourceCustomers = loadSourceCustomers();
+  const customerCount = sourceCustomers.length;
+  const abraCustomerCount = Math.min(40, customerCount);
 
   const managerPw = await argon2.hash("manager123");
   const salesPw = await argon2.hash("sales123");
@@ -184,15 +171,25 @@ async function main() {
       await tx.delete(schema.customers).where(inArray(schema.customers.id, customerIds));
     }
 
-    const customerRows = Array.from({ length: customerCount }, (_value, index) => {
+    const customerRows = sourceCustomers.map((sourceCustomer, index) => {
       const customerIndex = index + 1;
-      const currentRevenue = 10000 + customerIndex * 850;
-      const potential = currentRevenue * (1.4 + ((customerIndex % 5) * 0.18));
+      const currentRevenue = Number(sourceCustomer.currentRevenue);
+      const potential = currentRevenue * (1.25 + ((customerIndex % 5) * 0.12));
 
       return {
-        name: customerName(customerIndex),
-        segment: customerSegments[index % customerSegments.length],
-        currentRevenue: currentRevenue.toFixed(2),
+        name: sourceCustomer.name,
+        segment: resolveSegmentForIndustry(sourceCustomer.industry),
+        industry: sourceCustomer.industry,
+        ico: sourceCustomer.ico,
+        dic: sourceCustomer.dic || null,
+        icDph: sourceCustomer.icDph || null,
+        address: sourceCustomer.address || null,
+        city: sourceCustomer.city || null,
+        postalCode: sourceCustomer.postalCode || null,
+        district: sourceCustomer.district || null,
+        region: sourceCustomer.region || null,
+        currentRevenue: sourceCustomer.currentRevenue,
+        profit: sourceCustomer.profit,
         potential: potential.toFixed(2),
         shareOfWallet: 15 + ((customerIndex * 7) % 75),
         strategicCategory: strategicCategories[index % strategicCategories.length],

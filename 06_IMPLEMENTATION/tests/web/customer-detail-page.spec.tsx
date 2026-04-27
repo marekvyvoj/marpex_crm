@@ -33,7 +33,17 @@ describe("CustomerDetailPage", () => {
       id: "customer-1",
       name: "Phase5 Customer Detail",
       segment: "integrator",
+      industry: "oem",
+      ico: "44556677",
+      dic: "2023001122",
+      icDph: "SK2023001122",
+      address: "Priemyselná 12",
+      city: "Nitra",
+      postalCode: "949 01",
+      district: "Nitra",
+      region: "Nitriansky",
       currentRevenue: "120000",
+      profit: "18000",
       annualRevenuePlan: "180000",
       annualRevenuePlanYear: 2026,
       potential: "330000",
@@ -99,7 +109,13 @@ describe("CustomerDetailPage", () => {
     renderCustomerDetail();
 
     expect(await screen.findByRole("heading", { name: "Phase5 Customer Detail" })).toBeInTheDocument();
+    expect(screen.getByText(/Odvetvie:/)).toHaveTextContent("OEM");
     expect(screen.getByText(/Segment:/)).toHaveTextContent("integrator");
+    expect(screen.getByText(/IČO:/)).toHaveTextContent("44556677");
+    expect(screen.getByText(/DIČ:/)).toHaveTextContent("2023001122");
+    expect(screen.getByText(/IČ DPH:/)).toHaveTextContent("SK2023001122");
+    expect(screen.getByText(/Mesto:/)).toHaveTextContent("Nitra");
+    expect(screen.getByText(/Kraj:/)).toHaveTextContent("Nitriansky");
 
     fireEvent.click(screen.getByRole("button", { name: "Upraviť" }));
     fireEvent.change(screen.getByPlaceholderText("Názov firmy"), { target: { value: "Phase5 Customer Updated" } });
@@ -130,7 +146,17 @@ describe("CustomerDetailPage", () => {
       id: "customer-1",
       name: "Phase5 Customer Tabs",
       segment: "vyroba",
+      industry: "potravinarstvo",
+      ico: "88990011",
+      dic: "2022112233",
+      icDph: "SK2022112233",
+      address: "Potravinárska 5",
+      city: "Trenčín",
+      postalCode: "911 01",
+      district: "Trenčín",
+      region: "Trenčiansky",
       currentRevenue: "80000",
+      profit: "9000",
       annualRevenuePlan: "100000",
       annualRevenuePlanYear: new Date().getFullYear(),
       potential: "120000",

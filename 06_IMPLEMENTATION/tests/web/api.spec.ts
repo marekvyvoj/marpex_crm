@@ -1,6 +1,6 @@
 import "./setup.ts";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { api } from "../../apps/web/src/lib/api.ts";
+import { api, buildApiUrl, resolveApiBase } from "../../apps/web/src/lib/api.ts";
 
 describe("web api client", () => {
   beforeEach(() => {
@@ -16,6 +16,13 @@ describe("web api client", () => {
 
     await expect(api("/health")).resolves.toEqual({ ok: true });
     expect(fetch).toHaveBeenCalledWith("/api/health", expect.objectContaining({ credentials: "include" }));
+  });
+
+  it("normalizes API base values with or without /api suffix", () => {
+    expect(resolveApiBase("/api")).toBe("/api");
+    expect(resolveApiBase("https://marpexcrm-production.up.railway.app")).toBe("https://marpexcrm-production.up.railway.app/api");
+    expect(resolveApiBase("https://marpexcrm-production.up.railway.app/api")).toBe("https://marpexcrm-production.up.railway.app/api");
+    expect(buildApiUrl("/auth/login", "https://marpexcrm-production.up.railway.app/api")).toBe("https://marpexcrm-production.up.railway.app/api/auth/login");
   });
 
   it("returns undefined for 204 responses", async () => {

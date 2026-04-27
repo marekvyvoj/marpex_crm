@@ -2,13 +2,23 @@ import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api.ts";
-import { customerSegments, strategicCategories, contactRoles } from "@marpex/domain";
+import { customerSegments, customerIndustries, strategicCategories, contactRoles } from "@marpex/domain";
 
 interface Customer {
   id: string;
   name: string;
   segment: string;
+  industry: string | null;
+  ico: string | null;
+  dic: string | null;
+  icDph: string | null;
+  address: string | null;
+  city: string | null;
+  postalCode: string | null;
+  district: string | null;
+  region: string | null;
   currentRevenue: string | null;
+  profit: string | null;
   annualRevenuePlan: string | null;
   annualRevenuePlanYear: number | null;
   potential: string | null;
@@ -93,9 +103,19 @@ const STAGE_LABELS: Record<string, string> = {
   lost: "Stratený",
 };
 
+const INDUSTRY_LABELS: Record<string, string> = {
+  potravinarstvo: "Potravinarstvo",
+  oem: "OEM",
+  mobile_equipment: "Mobile Equipment",
+};
+
 function fmt(n: string | null) {
   if (!n) return "–";
   return `€ ${Number(n).toLocaleString("sk-SK")}`;
+}
+
+function formatIndustry(value: string | null) {
+  return value ? INDUSTRY_LABELS[value] ?? value : "–";
 }
 
 function getYearProgress(date: Date) {
@@ -221,7 +241,17 @@ export function CustomerDetailPage() {
     setEditForm({
       name: customer!.name,
       segment: customer!.segment,
+      industry: customer!.industry ?? undefined,
+      ico: customer!.ico ?? undefined,
+      dic: customer!.dic ?? undefined,
+      icDph: customer!.icDph ?? undefined,
+      address: customer!.address ?? undefined,
+      city: customer!.city ?? undefined,
+      postalCode: customer!.postalCode ?? undefined,
+      district: customer!.district ?? undefined,
+      region: customer!.region ?? undefined,
       currentRevenue: customer!.currentRevenue ?? undefined,
+      profit: customer!.profit ?? undefined,
       annualRevenuePlan: customer!.annualRevenuePlan ?? undefined,
       annualRevenuePlanYear: customer!.annualRevenuePlanYear ?? undefined,
       potential: customer!.potential ?? undefined,
@@ -235,8 +265,20 @@ export function CustomerDetailPage() {
     const body: Record<string, unknown> = {};
     if (editForm.name) body.name = editForm.name;
     if (editForm.segment) body.segment = editForm.segment;
+    if ((editForm as any).industry !== undefined) body.industry = (editForm as any).industry || undefined;
+    if ((editForm as any).ico !== undefined) body.ico = (editForm as any).ico || undefined;
+    if ((editForm as any).dic !== undefined) body.dic = (editForm as any).dic || undefined;
+    if ((editForm as any).icDph !== undefined) body.icDph = (editForm as any).icDph || undefined;
+    if ((editForm as any).address !== undefined) body.address = (editForm as any).address || undefined;
+    if ((editForm as any).city !== undefined) body.city = (editForm as any).city || undefined;
+    if ((editForm as any).postalCode !== undefined) body.postalCode = (editForm as any).postalCode || undefined;
+    if ((editForm as any).district !== undefined) body.district = (editForm as any).district || undefined;
+    if ((editForm as any).region !== undefined) body.region = (editForm as any).region || undefined;
     if ((editForm as any).currentRevenue !== undefined)
       body.currentRevenue = Number((editForm as any).currentRevenue) || undefined;
+    if ((editForm as any).profit !== undefined) {
+      body.profit = (editForm as any).profit === "" ? null : Number((editForm as any).profit) || 0;
+    }
     if ((editForm as any).annualRevenuePlan !== undefined) {
       if ((editForm as any).annualRevenuePlan === "") {
         body.annualRevenuePlan = null;
@@ -264,9 +306,9 @@ export function CustomerDetailPage() {
 
       {/* Customer header */}
       {editMode ? (
-        <form onSubmit={submitEdit} className="bg-white border border-gray-200 rounded-lg p-4 mb-6 grid grid-cols-1 gap-3 md:grid-cols-3">
+        <form onSubmit={submitEdit} className="bg-white border border-gray-200 rounded-lg p-4 mb-6 grid grid-cols-1 gap-3 md:grid-cols-4">
           <input
-            className="border border-gray-300 rounded px-3 py-2 text-sm col-span-3"
+            className="border border-gray-300 rounded px-3 py-2 text-sm md:col-span-4"
             placeholder="Názov firmy"
             value={(editForm as any).name ?? ""}
             onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
@@ -280,6 +322,14 @@ export function CustomerDetailPage() {
           </select>
           <select
             className="border border-gray-300 rounded px-3 py-2 text-sm"
+            value={(editForm as any).industry ?? ""}
+            onChange={(e) => setEditForm((f) => ({ ...f, industry: e.target.value }))}
+          >
+            <option value="">Odvetvie –</option>
+            {customerIndustries.map((value) => <option key={value} value={value}>{formatIndustry(value)}</option>)}
+          </select>
+          <select
+            className="border border-gray-300 rounded px-3 py-2 text-sm"
             value={(editForm as any).strategicCategory ?? ""}
             onChange={(e) => setEditForm((f) => ({ ...f, strategicCategory: e.target.value }))}
           >
@@ -287,12 +337,68 @@ export function CustomerDetailPage() {
             {strategicCategories.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
           <input
+            placeholder="IČO"
+            className="border border-gray-300 rounded px-3 py-2 text-sm"
+            value={(editForm as any).ico ?? ""}
+            onChange={(e) => setEditForm((f) => ({ ...f, ico: e.target.value }))}
+          />
+          <input
+            placeholder="DIČ"
+            className="border border-gray-300 rounded px-3 py-2 text-sm"
+            value={(editForm as any).dic ?? ""}
+            onChange={(e) => setEditForm((f) => ({ ...f, dic: e.target.value }))}
+          />
+          <input
+            placeholder="IČ DPH"
+            className="border border-gray-300 rounded px-3 py-2 text-sm"
+            value={(editForm as any).icDph ?? ""}
+            onChange={(e) => setEditForm((f) => ({ ...f, icDph: e.target.value }))}
+          />
+          <input
+            className="border border-gray-300 rounded px-3 py-2 text-sm md:col-span-4"
+            placeholder="Adresa"
+            value={(editForm as any).address ?? ""}
+            onChange={(e) => setEditForm((f) => ({ ...f, address: e.target.value }))}
+          />
+          <input
+            placeholder="Mesto"
+            className="border border-gray-300 rounded px-3 py-2 text-sm"
+            value={(editForm as any).city ?? ""}
+            onChange={(e) => setEditForm((f) => ({ ...f, city: e.target.value }))}
+          />
+          <input
+            placeholder="PSČ"
+            className="border border-gray-300 rounded px-3 py-2 text-sm"
+            value={(editForm as any).postalCode ?? ""}
+            onChange={(e) => setEditForm((f) => ({ ...f, postalCode: e.target.value }))}
+          />
+          <input
+            placeholder="Okres"
+            className="border border-gray-300 rounded px-3 py-2 text-sm"
+            value={(editForm as any).district ?? ""}
+            onChange={(e) => setEditForm((f) => ({ ...f, district: e.target.value }))}
+          />
+          <input
+            placeholder="Kraj"
+            className="border border-gray-300 rounded px-3 py-2 text-sm"
+            value={(editForm as any).region ?? ""}
+            onChange={(e) => setEditForm((f) => ({ ...f, region: e.target.value }))}
+          />
+          <input
             type="number"
             min={0}
             placeholder="Current Revenue €"
             className="border border-gray-300 rounded px-3 py-2 text-sm"
             value={(editForm as any).currentRevenue ?? ""}
             onChange={(e) => setEditForm((f) => ({ ...f, currentRevenue: e.target.value } as any))}
+          />
+          <input
+            type="number"
+            min={0}
+            placeholder="Zisk €"
+            className="border border-gray-300 rounded px-3 py-2 text-sm"
+            value={(editForm as any).profit ?? ""}
+            onChange={(e) => setEditForm((f) => ({ ...f, profit: e.target.value } as any))}
           />
           <input
             type="number"
@@ -310,7 +416,7 @@ export function CustomerDetailPage() {
             value={(editForm as any).potential ?? ""}
             onChange={(e) => setEditForm((f) => ({ ...f, potential: e.target.value } as any))}
           />
-          <div className="col-span-3 flex gap-2 justify-end">
+          <div className="md:col-span-4 flex gap-2 justify-end">
             <button type="button" onClick={() => setEditMode(false)} className="text-sm text-gray-500 px-4 py-2 border border-gray-200 rounded hover:bg-gray-50">Zrušiť</button>
             <button type="submit" className="text-sm bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Uložiť</button>
           </div>
@@ -320,11 +426,23 @@ export function CustomerDetailPage() {
           <div>
             <h2 className="text-xl font-bold mb-1">{customer.name}</h2>
             <div className="flex flex-wrap gap-4 text-sm text-gray-600">
+              <span>Odvetvie: <strong>{formatIndustry(customer.industry)}</strong></span>
               <span>Segment: <strong>{customer.segment}</strong></span>
               {customer.strategicCategory && <span>Kategória: <strong>{customer.strategicCategory}</strong></span>}
               <span>Potenciál: <strong>{fmt(customer.potential)}</strong></span>
+              {customer.profit && <span>Zisk: <strong>{fmt(customer.profit)}</strong></span>}
               {currentYearPlan && <span>Plán {currentYear}: <strong>{fmt(String(currentYearPlan))}</strong></span>}
               {customer.shareOfWallet != null && <span>SoW: <strong>{customer.shareOfWallet} %</strong></span>}
+            </div>
+            <div className="mt-3 grid grid-cols-1 gap-2 text-sm text-gray-600 sm:grid-cols-2 xl:grid-cols-4">
+              <span>IČO: <strong>{customer.ico || "–"}</strong></span>
+              <span>DIČ: <strong>{customer.dic || "–"}</strong></span>
+              <span>IČ DPH: <strong>{customer.icDph || "–"}</strong></span>
+              <span>Mesto: <strong>{customer.city || "–"}</strong></span>
+              <span>PSČ: <strong>{customer.postalCode || "–"}</strong></span>
+              <span>Okres: <strong>{customer.district || "–"}</strong></span>
+              <span>Kraj: <strong>{customer.region || "–"}</strong></span>
+              <span className="sm:col-span-2 xl:col-span-4">Adresa: <strong>{customer.address || "–"}</strong></span>
             </div>
           </div>
           <button onClick={startEdit} className="text-sm text-blue-600 hover:underline">Upraviť</button>

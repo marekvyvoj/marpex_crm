@@ -64,6 +64,16 @@
 - Decision: Add `@vitejs/plugin-legacy` to the web build with Safari and iOS Safari targets instead of trying to guess a single runtime API bug.
 - Why: The repository had no strong global Safari runtime culprit in app code, while the Vite build had no legacy browser output at all. A legacy bundle is the smallest broad compatibility hardening for older WebKit clients.
 
+### Model Requested Industries Separately From Segment
+
+- Decision: Introduce a separate nullable customer `industry` enum for `potravinarstvo`, `oem`, and `mobile_equipment`, while keeping the legacy `segment` enum intact and mapping industry to segment only for seed defaults.
+- Why: The requested filter values do not match the existing segment semantics. Reusing `segment` would have changed the meaning of an established field and broken existing classification behavior.
+
+### Normalize `VITE_API_URL` At The Client Boundary
+
+- Decision: Normalize the web API base so `VITE_API_URL` can be configured either as the raw API origin or as a URL that already ends with `/api`, while standardizing docs on the base origin form.
+- Why: The login issue was environment-sensitive rather than credential-sensitive, and the mismatch was reproducible when one environment included `/api` and another did not.
+
 ### Keep Demo Rebalance Strictly Bound To Seed Artifacts
 
 - Decision: Require the fixed demo email allowlist in the rebalance script, limit visits and tasks to seed-shaped records, and only rewrite the initial seeded opportunity stage-history author when reassigning owners.

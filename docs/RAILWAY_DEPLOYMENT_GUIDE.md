@@ -181,12 +181,24 @@ Keď máš frontend na Vercel/Railway a API na Railway:
 VITE_API_URL=https://marpexcrm-production.up.railway.app
 ```
 
+Odporúčaná hodnota je base URL bez suffixu `/api`.
+
 2. V **frontend** kóde (`apps/web/src/lib/api.ts` alebo podobne):
 
 ```typescript
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3005';
+function resolveApiBase(rawBase = import.meta.env.VITE_API_URL || "/api") {
+  const normalizedBase = rawBase.replace(/\/+$/, "");
 
-const response = await fetch(`${API_URL}/api/endpoint`);
+  if (!normalizedBase || normalizedBase === "/api") {
+    return "/api";
+  }
+
+  return normalizedBase.endsWith("/api") ? normalizedBase : `${normalizedBase}/api`;
+}
+
+const response = await fetch(`${resolveApiBase()}/endpoint`, {
+  credentials: "include",
+});
 ```
 
 ---

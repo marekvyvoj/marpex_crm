@@ -380,7 +380,17 @@ describe("API integration", () => {
       payload: {
         name: "Phase5 Customer CRUD",
         segment: "integrator",
+        industry: "oem",
+        ico: "44556677",
+        dic: "2023001122",
+        icDph: "SK2023001122",
+        address: "Priemyselna 12",
+        city: "Nitra",
+        postalCode: "949 01",
+        district: "Nitra",
+        region: "Nitriansky",
         currentRevenue: 120000,
+        profit: 18000,
         potential: 280000,
         shareOfWallet: 35,
         strategicCategory: "B",
@@ -443,7 +453,7 @@ describe("API integration", () => {
 
     const listResponse = await app.inject({
       method: "GET",
-      url: "/api/customers?q=Phase5%20Customer&segment=integrator&category=B",
+      url: "/api/customers?q=Phase5%20Customer&segment=integrator&industry=oem&category=B",
       headers: { cookie },
     });
     expect(listResponse.statusCode).toBe(200);
@@ -452,6 +462,11 @@ describe("API integration", () => {
       .find((row: { id: string }) => row.id === customer.id);
     expect(listedCustomer).toMatchObject({
       id: customer.id,
+      industry: "oem",
+      ico: "44556677",
+      city: "Nitra",
+      region: "Nitriansky",
+      profit: "18000.00",
       currentYearRevenue: "125000.50",
       previousYearRevenue: "83000.25",
     });
@@ -465,6 +480,16 @@ describe("API integration", () => {
     expect(singleResponse.json()).toMatchObject({
       name: "Phase5 Customer CRUD",
       segment: "integrator",
+      industry: "oem",
+      ico: "44556677",
+      dic: "2023001122",
+      icDph: "SK2023001122",
+      address: "Priemyselna 12",
+      city: "Nitra",
+      postalCode: "949 01",
+      district: "Nitra",
+      region: "Nitriansky",
+      profit: "18000.00",
       currentYearRevenue: "125000.50",
       previousYearRevenue: "83000.25",
     });
@@ -483,12 +508,19 @@ describe("API integration", () => {
       headers: { cookie },
       payload: {
         name: "Phase5 Customer Updated",
+        city: "Zilina",
+        profit: 19500,
         potential: 300000,
         strategicCategory: "A",
       },
     });
     expect(patchResponse.statusCode).toBe(200);
-    expect(patchResponse.json()).toMatchObject({ name: "Phase5 Customer Updated", strategicCategory: "A" });
+    expect(patchResponse.json()).toMatchObject({
+      name: "Phase5 Customer Updated",
+      city: "Zilina",
+      profit: "19500.00",
+      strategicCategory: "A",
+    });
 
     const visitsResponse = await app.inject({
       method: "GET",

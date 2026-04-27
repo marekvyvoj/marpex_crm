@@ -34,10 +34,12 @@ SESSION_SECRET=NAHODNY_RETAZEC_MIN_64_ZNAKOV
 ANNUAL_REVENUE_TARGET_EUR=
 
 # Web (vite build)
-VITE_API_URL=https://crm.vasadomena.sk/api
+VITE_API_URL=https://crm.vasadomena.sk
 ```
 
 `ANNUAL_REVENUE_TARGET_EUR` je voliteľný override pre coverage ratio. Ak ho nenastavíš, dashboard odvodí target z `currentRevenue` na zákazníkoch (`súčet currentRevenue × 1.3`).
+
+`VITE_API_URL` odporúčame držať bez suffixu `/api`. Frontend si API prefix normalizuje sám, ale jednotná base URL znižuje riziko chýb pri login flow.
 
 **Generovanie SESSION_SECRET:**
 ```bash

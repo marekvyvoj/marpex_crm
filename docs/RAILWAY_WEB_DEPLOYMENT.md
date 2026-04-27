@@ -75,6 +75,7 @@ VITE_API_URL=https://marpex-api.railway.app
 ```
 
 Kde `marpex-api.railway.app` je tvoj **API service URL**. Môžeš si ho nájsť v API service → Settings → Domains alebo Development domain.
+Odporúčaná hodnota je base URL bez suffixu `/api`.
 
 **OPCIA:** Ak máš vlastnú doménu (napr. `marpex.sk`):
 
@@ -121,19 +122,25 @@ Alebo ak máš **API client triedu/funkciu** (napr. `lib/api.ts`):
 
 ```typescript
 // apps/web/src/lib/api.ts
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3005";
+function resolveApiBase(rawBase = import.meta.env.VITE_API_URL || "/api") {
+  const normalizedBase = rawBase.replace(/\/+$/, "");
 
-export const api = {
-  get: (path: string) => fetch(`${API_BASE}${path}`, { credentials: "include" }),
-  post: (path: string, body: unknown) =>
-    fetch(`${API_BASE}${path}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-      credentials: "include",
-    }),
-  // ... ďalšie metódy
-};
+  if (!normalizedBase || normalizedBase === "/api") {
+    return "/api";
+  }
+
+  return normalizedBase.endsWith("/api") ? normalizedBase : `${normalizedBase}/api`;
+}
+
+const API_BASE = resolveApiBase();
+
+export async function api(path: string, options?: RequestInit) {
+  return fetch(`${API_BASE}${path}`, {
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    ...options,
+  });
+}
 ```
 
 ---
@@ -195,7 +202,7 @@ fetch(url, { credentials: "include" }) // ← DÔLEŽITÉ
 ### ❌ Web sa neprepája na API (CORS error)
 
 **Riešenie:** Skontroluj:
-1. `VITE_API_URL` v Railway variables
+1. `VITE_API_URL` v Railway variables nastav na API base URL bez `/api`
 2. API `CORS_ORIGIN` settings (má byť `https://marpex-web.railway.app`)
 3. Fetch/axios call má `credentials: "include"`
 
@@ -211,7 +218,7 @@ fetch(url, { credentials: "include" }) // ← DÔLEŽITÉ
 - [ ] Vytvoril som nový web service v Railway
 - [ ] Web service používa `06_IMPLEMENTATION/apps/web/Dockerfile`
 - [ ] Build context obsahuje celý repo root s `06_IMPLEMENTATION/`
-- [ ] `VITE_API_URL` premenná ukazuje na správny API service
+- [ ] `VITE_API_URL` premenná ukazuje na správny API service bez `/api`
 - [ ] Web sa builday bez erroru
 - [ ] Web sa spúšťa na porte 3000
 - [ ] Frontend HTML sa loady (môžeš vidieť v braužéri)

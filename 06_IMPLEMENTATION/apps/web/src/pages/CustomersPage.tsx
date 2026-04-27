@@ -2,20 +2,35 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api.ts";
-import { customerSegments, strategicCategories } from "@marpex/domain";
+import { customerSegments, customerIndustries, strategicCategories } from "@marpex/domain";
 
 interface Customer {
   id: string;
   name: string;
   segment: string;
+  industry: string | null;
+  ico: string | null;
+  city: string | null;
+  region: string | null;
   currentYearRevenue: string | null;
   previousYearRevenue: string | null;
+  profit: string | null;
   potential: string | null;
   strategicCategory: string | null;
 }
 
+const INDUSTRY_LABELS: Record<string, string> = {
+  potravinarstvo: "Potravinarstvo",
+  oem: "OEM",
+  mobile_equipment: "Mobile Equipment",
+};
+
 function formatCurrency(value: string | null) {
   return value ? `€ ${Number(value).toLocaleString("sk-SK")}` : "–";
+}
+
+function formatIndustry(value: string | null) {
+  return value ? INDUSTRY_LABELS[value] ?? value : "–";
 }
 
 export function CustomersPage() {
@@ -26,17 +41,20 @@ export function CustomersPage() {
   // Filter state
   const [search, setSearch] = useState("");
   const [filterSegment, setFilterSegment] = useState("");
+  const [filterIndustry, setFilterIndustry] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
 
   // Create form state
   const [name, setName] = useState("");
   const [segment, setSegment] = useState<string>(customerSegments[0]);
+  const [industry, setIndustry] = useState("");
   const [category, setCategory] = useState<string>("");
 
   // Build query string from active filters
   const params = new URLSearchParams();
   if (search.trim()) params.set("q", search.trim());
   if (filterSegment) params.set("segment", filterSegment);
+  if (filterIndustry) params.set("industry", filterIndustry);
   if (filterCategory) params.set("category", filterCategory);
   const qs = params.toString();
 
@@ -52,6 +70,7 @@ export function CustomersPage() {
         body: JSON.stringify({
           name,
           segment,
+          industry: industry || undefined,
           strategicCategory: category || undefined,
         }),
       }),
@@ -59,6 +78,7 @@ export function CustomersPage() {
       qc.invalidateQueries({ queryKey: ["customers"] });
       setShowForm(false);
       setName("");
+      setIndustry("");
     },
   });
 
@@ -92,6 +112,14 @@ export function CustomersPage() {
           {customerSegments.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
         <select
+          value={filterIndustry}
+          onChange={(e) => setFilterIndustry(e.target.value)}
+          className="border border-gray-300 rounded px-3 py-1.5 text-sm"
+        >
+          <option value="">Všetky odvetvia</option>
+          {customerIndustries.map((value) => <option key={value} value={value}>{formatIndustry(value)}</option>)}
+        </select>
+        <select
           value={filterCategory}
           onChange={(e) => setFilterCategory(e.target.value)}
           className="border border-gray-300 rounded px-3 py-1.5 text-sm"
@@ -99,9 +127,9 @@ export function CustomersPage() {
           <option value="">Všetky kategórie</option>
           {strategicCategories.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
-        {(search || filterSegment || filterCategory) && (
+        {(search || filterSegment || filterIndustry || filterCategory) && (
           <button
-            onClick={() => { setSearch(""); setFilterSegment(""); setFilterCategory(""); }}
+            onClick={() => { setSearch(""); setFilterSegment(""); setFilterIndustry(""); setFilterCategory(""); }}
             className="text-sm text-gray-400 hover:text-gray-700 px-2"
           >
             ✕ Zrušiť
@@ -124,6 +152,10 @@ export function CustomersPage() {
           <select value={segment} onChange={(e) => setSegment(e.target.value)} className="border border-gray-300 rounded px-3 py-2 text-sm">
             {customerSegments.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
+          <select value={industry} onChange={(e) => setIndustry(e.target.value)} className="border border-gray-300 rounded px-3 py-2 text-sm">
+            <option value="">Odvetvie</option>
+            {customerIndustries.map((value) => <option key={value} value={value}>{formatIndustry(value)}</option>)}
+          </select>
           <select value={category} onChange={(e) => setCategory(e.target.value)} className="border border-gray-300 rounded px-3 py-2 text-sm">
             <option value="">Kategória</option>
             {strategicCategories.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -138,17 +170,22 @@ export function CustomersPage() {
         <p className="text-gray-400 text-sm">Načítavam…</p>
       ) : customers.length === 0 ? (
         <div className="text-center py-12 text-gray-400">
-          <p className="text-sm">{(search || filterSegment || filterCategory) ? "Žiadne výsledky pre zadané filtre." : "Žiadni zákazníci. Pridajte prvého."}</p>
+          <p className="text-sm">{(search || filterSegment || filterIndustry || filterCategory) ? "Žiadne výsledky pre zadané filtre." : "Žiadni zákazníci. Pridajte prvého."}</p>
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[920px] bg-white rounded-lg border border-gray-200 text-sm">
+          <table className="w-full min-w-[1180px] bg-white rounded-lg border border-gray-200 text-sm">
             <thead>
               <tr className="border-b border-gray-200 text-left text-gray-500">
                 <th className="px-4 py-2">Názov</th>
+                <th className="px-4 py-2">Odvetvie</th>
                 <th className="px-4 py-2">Segment</th>
+                <th className="px-4 py-2">IČO</th>
+                <th className="px-4 py-2">Mesto</th>
+                <th className="px-4 py-2">Kraj</th>
                 <th className="px-4 py-2">Kategória</th>
                 <th className="px-4 py-2 text-right">Tržby {currentYear}</th>
+                <th className="px-4 py-2 text-right">Zisk</th>
                 <th className="px-4 py-2 text-right">Tržby {currentYear - 1}</th>
                 <th className="px-4 py-2 text-right">Potenciál</th>
               </tr>
@@ -159,9 +196,14 @@ export function CustomersPage() {
                   <td className="px-4 py-2 font-medium">
                     <Link to={`/customers/${c.id}`} className="text-blue-600 hover:underline">{c.name}</Link>
                   </td>
+                  <td className="px-4 py-2">{formatIndustry(c.industry)}</td>
                   <td className="px-4 py-2">{c.segment}</td>
+                  <td className="px-4 py-2">{c.ico || "–"}</td>
+                  <td className="px-4 py-2">{c.city || "–"}</td>
+                  <td className="px-4 py-2">{c.region || "–"}</td>
                   <td className="px-4 py-2">{c.strategicCategory || "–"}</td>
                   <td className="px-4 py-2 text-right">{formatCurrency(c.currentYearRevenue)}</td>
+                  <td className="px-4 py-2 text-right">{formatCurrency(c.profit)}</td>
                   <td className="px-4 py-2 text-right">{formatCurrency(c.previousYearRevenue)}</td>
                   <td className="px-4 py-2 text-right">{formatCurrency(c.potential)}</td>
                 </tr>

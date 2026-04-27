@@ -94,6 +94,11 @@ paths:
             type: string
             enum: [oem, vyroba, integrator, servis, other]
         - in: query
+          name: industry
+          schema:
+            type: string
+            enum: [potravinarstvo, oem, mobile_equipment]
+        - in: query
           name: category
           schema:
             type: string
@@ -139,6 +144,30 @@ paths:
                 segment:
                   type: string
                   enum: [oem, vyroba, integrator, servis, other]
+                industry:
+                  type: string
+                  enum: [potravinarstvo, oem, mobile_equipment]
+                ico:
+                  type: string
+                dic:
+                  type: string
+                icDph:
+                  type: string
+                address:
+                  type: string
+                city:
+                  type: string
+                postalCode:
+                  type: string
+                district:
+                  type: string
+                region:
+                  type: string
+                currentRevenue:
+                  type: number
+                profit:
+                  type: number
+                  nullable: true
                 strategicCategory:
                   type: string
                   enum: [A, B, C]
@@ -590,6 +619,34 @@ components:
           type: string
         segment:
           type: string
+        industry:
+          type: string
+          nullable: true
+          enum: [potravinarstvo, oem, mobile_equipment]
+        ico:
+          type: string
+          nullable: true
+        dic:
+          type: string
+          nullable: true
+        icDph:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        postalCode:
+          type: string
+          nullable: true
+        district:
+          type: string
+          nullable: true
+        region:
+          type: string
+          nullable: true
         currentRevenue:
           type: string
           nullable: true
@@ -597,6 +654,9 @@ components:
           type: string
           nullable: true
         previousYearRevenue:
+          type: string
+          nullable: true
+        profit:
           type: string
           nullable: true
         annualRevenuePlan:

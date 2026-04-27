@@ -44,6 +44,17 @@
 
 ## 2026-04-27
 
+### SourceData Customers And Login Hardening
+
+- Inspected the six `SourceData/*.xlsx` workbooks and confirmed 687 unique customer rows with shared identity, address, revenue, and profit columns.
+- Added a separate customer `industry` enum and the requested SourceData-backed fields across the shared domain schema, API DB schema, customer routes, web customer pages, and additive migration `0007_customer_source_data_fields.sql`.
+- Added `apps/api/src/lib/source-customers.ts` and rewired `apps/api/src/seed.ts` so local seeding replaces generated demo customers with the Excel-derived customer set.
+- Hardened `apps/web/src/lib/api.ts` so `VITE_API_URL` works with or without `/api`, and updated `LoginPage` to surface rate-limit and network errors instead of only invalid credentials.
+- Synced OpenAPI and Railway or launch docs to the new customer contract and normalized `VITE_API_URL` guidance.
+- Validated with `cd 06_IMPLEMENTATION && npm run typecheck` and `cd 06_IMPLEMENTATION && npm run phase5:test:web`; both passed.
+- Extended the nearest customer integration test in `07_TEST_SUITE/integration/api.spec.ts` for `industry`, SourceData fields, and profit updates.
+- Confirmed DB-backed validation is environment-blocked: the targeted Vitest scenario fails with `ECONNREFUSED` on `localhost:5432`, `docker compose up -d db` cannot run because Docker Desktop engine is unavailable, and no local PostgreSQL service or tools are installed.
+
 ### Salesperson Planner Discovery
 
 - Verified that both visits and opportunities already store `nextStepDeadline` and that users enter these values from existing visit and pipeline forms.

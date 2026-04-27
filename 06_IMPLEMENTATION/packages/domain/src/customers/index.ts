@@ -10,13 +10,31 @@ export const customerSegments = [
 
 export type CustomerSegment = (typeof customerSegments)[number];
 
+export const customerIndustries = [
+  "potravinarstvo",
+  "oem",
+  "mobile_equipment",
+] as const;
+
+export type CustomerIndustry = (typeof customerIndustries)[number];
+
 export const strategicCategories = ["A", "B", "C"] as const;
 export type StrategicCategory = (typeof strategicCategories)[number];
 
 export const customerSchema = z.object({
   name: z.string().min(1),
   segment: z.enum(customerSegments),
+  industry: z.enum(customerIndustries).optional(),
+  ico: z.string().trim().min(1).max(20).optional(),
+  dic: z.string().trim().min(1).max(20).optional(),
+  icDph: z.string().trim().min(1).max(20).optional(),
+  address: z.string().trim().min(1).max(500).optional(),
+  city: z.string().trim().min(1).max(255).optional(),
+  postalCode: z.string().trim().min(1).max(20).optional(),
+  district: z.string().trim().min(1).max(255).optional(),
+  region: z.string().trim().min(1).max(255).optional(),
   currentRevenue: z.number().min(0).optional(),
+  profit: z.number().min(0).nullable().optional(),
   potential: z.number().min(0).optional(),
   shareOfWallet: z.number().min(0).max(100).optional(),
   strategicCategory: z.enum(strategicCategories).optional(),

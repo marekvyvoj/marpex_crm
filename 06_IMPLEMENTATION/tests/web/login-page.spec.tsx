@@ -36,13 +36,24 @@ describe("LoginPage", () => {
   });
 
   it("shows error message when login fails", async () => {
-    loginMock.mockRejectedValueOnce(new Error("bad"));
+    loginMock.mockRejectedValueOnce(new Error("Príliš veľa pokusov. Skúste znova o 15 minút."));
     renderWithProviders(<LoginPage />, { route: "/login" });
 
     fireEvent.change(screen.getByPlaceholderText("Email"), { target: { value: "manager@marpex.sk" } });
     fireEvent.change(screen.getByPlaceholderText("Heslo"), { target: { value: "wrong" } });
     fireEvent.click(screen.getByRole("button", { name: "Prihlásiť sa" }));
 
-    expect(await screen.findByText("Neplatné prihlasovacie údaje")).toBeInTheDocument();
+    expect(await screen.findByText("Príliš veľa pokusov. Skúste znova o 15 minút.")).toBeInTheDocument();
+  });
+
+  it("shows a dedicated message for network failures", async () => {
+    loginMock.mockRejectedValueOnce(new Error("Failed to fetch"));
+    renderWithProviders(<LoginPage />, { route: "/login" });
+
+    fireEvent.change(screen.getByPlaceholderText("Email"), { target: { value: "manager@marpex.sk" } });
+    fireEvent.change(screen.getByPlaceholderText("Heslo"), { target: { value: "manager123" } });
+    fireEvent.click(screen.getByRole("button", { name: "Prihlásiť sa" }));
+
+    expect(await screen.findByText("Prihlásenie zlyhalo. Skontrolujte pripojenie alebo nastavenie API.")).toBeInTheDocument();
   });
 });
