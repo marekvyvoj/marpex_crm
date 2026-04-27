@@ -45,6 +45,7 @@ describe("Layout", () => {
     authState = { user: { name: "Manažér", role: "manager" }, loading: false, logout: logoutMock };
     renderLayout();
 
+    expect(screen.queryByRole("link", { name: "Plán práce" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Report" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Používatelia" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Odhlásiť sa" }));
@@ -55,6 +56,7 @@ describe("Layout", () => {
     authState = { user: { name: "Sales", role: "sales" }, loading: false, logout: logoutMock };
     renderLayout();
 
+    expect(screen.getByRole("link", { name: "Plán práce" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Report" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Používatelia" })).not.toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Main navigation" })).toBeInTheDocument();

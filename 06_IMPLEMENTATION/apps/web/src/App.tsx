@@ -4,6 +4,7 @@ import { Layout } from "./components/Layout.tsx";
 
 const LoginPage = lazy(async () => ({ default: (await import("./pages/LoginPage.tsx")).LoginPage }));
 const DashboardPage = lazy(async () => ({ default: (await import("./pages/DashboardPage.tsx")).DashboardPage }));
+const PlannerPage = lazy(async () => ({ default: (await import("./pages/PlannerPage.tsx")).PlannerPage }));
 const CustomersPage = lazy(async () => ({ default: (await import("./pages/CustomersPage.tsx")).CustomersPage }));
 const CustomerDetailPage = lazy(async () => ({ default: (await import("./pages/CustomerDetailPage.tsx")).CustomerDetailPage }));
 const VisitsPage = lazy(async () => ({ default: (await import("./pages/VisitsPage.tsx")).VisitsPage }));
@@ -27,6 +28,7 @@ export function App() {
         <Route element={<Layout />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/planner" element={<PlannerPage />} />
           <Route path="/customers" element={<CustomersPage />} />
           <Route path="/customers/:id" element={<CustomerDetailPage />} />
           <Route path="/visits" element={<VisitsPage />} />

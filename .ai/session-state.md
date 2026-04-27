@@ -1,9 +1,9 @@
 # Session State
 
-Last updated: 2026-04-26
-Current task: Customer yearly revenue split, reversible opportunity tasks, local integration DB alignment, commit/push, and Railway deploy
-Current phase: Feature code and local validation completed; handoff docs are being refreshed before git push and Railway deployment
-Approval status: Explicit user approval received for local DB-mutating commands against the local integration target, git commit/push, and Railway deploy steps for this task.
+Last updated: 2026-04-27
+Current task: Salesperson planner view for upcoming next steps, focused validation, docs sync, commit/push, and deploy preparation
+Current phase: Feature implemented, reduced-assurance same-session review completed, and local non-DB validation passed; DB-backed validation and remote steps remain blocked by environment confirmation
+Approval status: User requested commit, push, and deploy, but live-target deployment still needs explicit confirmation of the intended remote environment before execution.
 
 ## Repository Discovery
 
@@ -102,23 +102,23 @@ Approval status: Explicit user approval received for local DB-mutating commands 
 
 - Visit dictation on mobile depends on browser support for `SpeechRecognition` or `webkitSpeechRecognition`; unsupported browsers fall back to normal text input or OS keyboard dictation.
 - Customer annual plan is currently modeled as a single current-year amount plus year stamp on the customer record. If the product needs multi-year plan history or ABRA-driven plan import, this should move to a dedicated table or import flow.
+- Push and deployment steps are high-risk until the target remote and deployment environment are reconfirmed for this new feature task.
 
 ## Current Execution Notes
 
-- Focused web tests for `CustomersPage` and `OpportunityDetailPage` passed after the yearly revenue split and reversible task toggle changes.
-- `cd 06_IMPLEMENTATION && npm run typecheck` passed after the latest follow-up edits.
-- Local integration DB drift was resolved by backfilling the local Drizzle ledger for already-existing `0003` to `0005` records and then applying the pending safe catch-up migration `0006`.
-- The next operational steps are git commit/push, Railway deploy, and post-deploy smoke validation.
+- Implemented `GET /api/dashboard/planner` as a salesperson-only endpoint aggregating `nextStepDeadline` from visits and open opportunities.
+- Added the `Plán práce` route, salesperson-only navigation item, and dashboard preview based on the existing dashboard payload.
+- Same-session reviewer findings were applied: dashboard no longer does a second planner fetch, planner errors are surfaced in the UI, and same-day deadlines no longer inflate overdue opportunity counts.
+- `cd 06_IMPLEMENTATION && npx vitest run tests/web/dashboard-page.spec.tsx tests/web/planner-page.spec.tsx tests/web/layout.spec.tsx --config vitest.phase5.config.ts`: passed.
+- `cd 06_IMPLEMENTATION && npm run typecheck`: passed.
+- `cd 07_TEST_SUITE && npm run test:integration -- api.spec.ts`: blocked by missing local PostgreSQL on `localhost:5432` (`ECONNREFUSED`).
 
 ## Handoff Summary
 
-- Visits now support persistent free-text notes, mobile dictation, clickable list/detail navigation, and a dedicated detail page.
-- Pipeline now exposes clickable stage headers, a stage detail page with tabular opportunity view, and two stage-level charts for counts and potential.
-- Customer detail now shows yearly ABRA revenues for the current year plus the two previous years, highlights the current year, and evaluates current-year plan progress when a plan is defined.
-- Main web pages were adjusted for mobile browser use by removing rigid desktop grids and wrapping wide content in responsive containers.
-- Customer list now returns and renders `currentYearRevenue` plus `previousYearRevenue` instead of a single revenue column.
-- Opportunity tasks can now be toggled from done back to not done through the same API route and UI checkbox.
+- Salespeople now have a dedicated `Plán práce` view that groups overdue, today, next-7-days, and later next steps from visits and opportunities, with deep links back to the source records.
+- Sales dashboards now include a personal planner preview without an extra API round-trip.
+- The new planner flow is covered by focused web tests and typecheck, while DB-backed integration confirmation is still pending a local PostgreSQL target.
 
 ## Next Recommended Action
 
-- Push the validated change set on `main`, deploy both Railway services, and run a non-mutating production smoke check for API health, login, customer list payload shape, and web availability.
+- Commit the validated planner change locally. If a disposable local DB or explicit deployment target is confirmed, rerun integration coverage and only then proceed with push and deployment.

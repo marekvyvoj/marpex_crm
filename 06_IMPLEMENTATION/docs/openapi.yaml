@@ -394,6 +394,16 @@ paths:
                     type: number
                   weightedPipeline:
                     type: number
+                  plannerPreview:
+                    nullable: true
+                    type: object
+                    properties:
+                      summary:
+                        $ref: '#/components/schemas/DashboardPlannerSummary'
+                      previewItems:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/DashboardPlannerItem'
                   top10:
                     type: array
                     items:
@@ -410,6 +420,36 @@ paths:
                           type: number
                         stage:
                           type: string
+  /api/dashboard/planner:
+    get:
+      tags: [Dashboard]
+      summary: Salesperson upcoming work planner built from visit and opportunity next steps
+      responses:
+        '200':
+          description: Planner payload for the logged-in user scope
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  summary:
+                    $ref: '#/components/schemas/DashboardPlannerSummary'
+                  windowStart:
+                    type: string
+                    format: date
+                  windowEnd:
+                    type: string
+                    format: date
+                  previewItems:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DashboardPlannerItem'
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DashboardPlannerItem'
+        '403':
+          $ref: '#/components/responses/ApiError'
   /api/report/salesperson:
     get:
       tags: [Report]
@@ -479,6 +519,53 @@ components:
         details:
           type: object
           additionalProperties: true
+    DashboardPlannerSummary:
+      type: object
+      properties:
+        overdueCount:
+          type: integer
+        dueTodayCount:
+          type: integer
+        dueThisWeekCount:
+          type: integer
+        laterCount:
+          type: integer
+        totalCount:
+          type: integer
+    DashboardPlannerItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sourceType:
+          type: string
+          enum: [opportunity, visit]
+        customerId:
+          type: string
+          format: uuid
+        customerName:
+          type: string
+        title:
+          type: string
+        nextStep:
+          type: string
+        dueDate:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [overdue, today, this_week, later]
+        stage:
+          type: string
+          nullable: true
+        visitDate:
+          type: string
+          format: date
+          nullable: true
+        value:
+          type: number
+          nullable: true
     User:
       type: object
       properties:

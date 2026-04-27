@@ -10,6 +10,19 @@ import {
   getUserByEmail,
 } from "../helpers/fixtures.ts";
 
+function dateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
 describe("API integration", () => {
   let app: Awaited<ReturnType<typeof createApp>>;
 
@@ -141,6 +154,89 @@ describe("API integration", () => {
     expect(body.openCount).toBe(1);
     expect(body.top10).toHaveLength(1);
     expect(body.top10[0].title).toBe("Sales Owned Opp");
+  });
+
+  it("returns planner items from visits and opportunities scoped to the logged-in salesperson", async () => {
+    const sales = await getUserByEmail("obchodnik1@marpex.sk");
+    const manager = await getUserByEmail("manager@marpex.sk");
+    const customer = await createTestCustomer({ name: "Phase5 Planner Scope" });
+    const contact = await createTestContact(customer.id);
+    const today = new Date();
+    const overdueDate = dateKey(addDays(today, -1));
+    const upcomingDate = dateKey(addDays(today, 3));
+
+    await createTestVisit({
+      customerId: customer.id,
+      contactId: contact.id,
+      ownerId: sales.id,
+      date: overdueDate,
+      nextStepDeadline: overdueDate,
+      nextStep: "Zavolať po návšteve",
+      potentialEur: "2500",
+    });
+
+    await createTestOpportunity({
+      customerId: customer.id,
+      ownerId: sales.id,
+      title: "Sales Planner Opp",
+      stage: "qualified",
+      value: "42000",
+      nextStepSummary: "Poslať ďalší návrh",
+      nextStepDeadline: upcomingDate,
+    });
+
+    await createTestOpportunity({
+      customerId: customer.id,
+      ownerId: manager.id,
+      title: "Manager Hidden Opp",
+      stage: "qualified",
+      value: "99000",
+      nextStepSummary: "Nemá byť viditeľné",
+      nextStepDeadline: overdueDate,
+    });
+
+    const { cookie, response: loginResponse } = await loginAs(app, "obchodnik1@marpex.sk", "sales123", "127.0.0.90");
+    expect(loginResponse.statusCode).toBe(200);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/dashboard/planner",
+      headers: { cookie },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json();
+
+    expect(body.summary).toMatchObject({
+      overdueCount: 1,
+      dueTodayCount: 0,
+      dueThisWeekCount: 1,
+      laterCount: 0,
+      totalCount: 2,
+    });
+    expect(body.items).toHaveLength(2);
+    expect(body.items.map((item: { title: string }) => item.title)).toEqual([
+      expect.stringContaining("Návšteva"),
+      "Sales Planner Opp",
+    ]);
+    expect(body.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sourceType: "visit",
+          customerName: "Phase5 Planner Scope",
+          nextStep: "Zavolať po návšteve",
+          status: "overdue",
+        }),
+        expect.objectContaining({
+          sourceType: "opportunity",
+          title: "Sales Planner Opp",
+          nextStep: "Poslať ďalší návrh",
+          status: "this_week",
+        }),
+      ]),
+    );
+    expect(body.items.some((item: { title: string }) => item.title === "Manager Hidden Opp")).toBe(false);
+    expect(body.previewItems).toHaveLength(2);
   });
 
   it("blocks salesperson access to manager report", async () => {

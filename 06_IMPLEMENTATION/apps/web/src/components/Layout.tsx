@@ -9,6 +9,7 @@ export function Layout() {
 
   const navItems = [
     { to: "/dashboard", label: "Dashboard" },
+    ...(user.role === "sales" ? [{ to: "/planner", label: "Plán práce" }] : []),
     { to: "/customers", label: "Zákazníci" },
     { to: "/visits", label: "Návštevy" },
     { to: "/pipeline", label: "Pipeline" },

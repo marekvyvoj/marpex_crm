@@ -42,6 +42,17 @@
 - Diagnosed local integration DB drift: `drizzle.__drizzle_migrations` only recorded `0001` and `0002`, while ABRA tables from `0003` already existed and newer columns were missing.
 - Recovered the local integration target by backfilling the local Drizzle ledger for `0003` to `0005`, reran `cd 06_IMPLEMENTATION && npm run db:migrate`, and then confirmed `cd 07_TEST_SUITE && npm run test:integration` passed 19/19.
 
+## 2026-04-27
+
+### Salesperson Planner Discovery
+
+- Verified that both visits and opportunities already store `nextStepDeadline` and that users enter these values from existing visit and pipeline forms.
+- Confirmed the dashboard route already scopes visits and opportunities by the logged-in user role, which makes it the smallest safe place to aggregate upcoming work items.
+- Chose a minimal slice: extend dashboard API payload with upcoming next steps, add a dedicated planner page in the web app, add focused tests, and sync docs.
+- Implemented the planner endpoint and web screens, then tightened the slice after review by making the planner salesperson-only, removing the extra dashboard fetch, and surfacing UI error states.
+- Confirmed focused web tests and `cd 06_IMPLEMENTATION && npm run typecheck` passed.
+- Attempted `cd 07_TEST_SUITE && npm run test:integration -- api.spec.ts`, but local PostgreSQL was unavailable on `localhost:5432`, so DB-backed validation remains blocked.
+
 ## Logging Rules
 
 - Append short factual entries only.

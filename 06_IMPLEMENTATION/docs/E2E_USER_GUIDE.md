@@ -77,7 +77,24 @@ Očakávaný výsledok:
 - Dashboard sa načíta bez chyby.
 - Manažér vidí aj manažérske sekcie `Report` a `Používatelia`.
 
-### Scenár B: Zákazník od zoznamu po detail
+### Scenár B: Plán práce obchodníka
+
+Kroky:
+
+1. Prihlás sa ako obchodník cez `obchodnik1@marpex.sk` / `sales123`.
+2. V navigácii otvor `Plán práce`.
+3. Skontroluj sumárne boxy `Po termíne`, `Dnes`, `Do 7 dní`, `Neskôr` a `Všetky next stepy`.
+4. Over, že v sekciách vidíš next stepy z návštev aj z príležitostí.
+5. Klikni na jednu položku z návštevy a na jednu položku z príležitosti.
+6. Over, že sa otvorí správny detail (`Návšteva` alebo detail príležitosti v `Pipeline`).
+
+Očakávaný výsledok:
+
+- obchodník vidí svoje nadchádzajúce a oneskorené next stepy na jednom mieste
+- položky sú rozdelené podľa urgency
+- klik z plánovača vedie na správny detail zdrojového záznamu
+
+### Scenár C: Zákazník od zoznamu po detail
 
 Kroky:
 
@@ -103,7 +120,7 @@ Očakávaný výsledok:
 - nový kontakt sa objaví v tabuľke kontaktov
 - návštevy a príležitosti sú zobrazené v samostatných tabs
 
-### Scenár C: CSV import zákazníkov
+### Scenár D: CSV import zákazníkov
 
 Kroky:
 
@@ -134,7 +151,7 @@ Tip pre negatívny test:
 - zmeň `segment` na neplatnú hodnotu, napríklad `invalid`, a import zopakuj
 - systém má vrátiť error report pre konkrétny riadok
 
-### Scenár D: Manažérsky report obchodníkov
+### Scenár E: Manažérsky report obchodníkov
 
 Kroky:
 
@@ -159,7 +176,7 @@ Očakávaný výsledok:
 - obchodník bez manažérskej roly report vidieť nesmie
 - riadky s problémami sú zvýraznené rizikovým badgeom
 
-### Scenár E: Pipeline a stagnácia
+### Scenár F: Pipeline a stagnácia
 
 Kroky:
 
@@ -231,13 +248,14 @@ Užitočné pravidlo:
 Ak nechceš testovať všetko, prejdi minimálne tento krátky balík:
 
 1. Prihlásenie ako manažér.
-2. Vyhľadanie zákazníka a otvorenie customer detailu.
-3. Pridanie jedného kontaktu.
-4. Import jedného CSV súboru.
-5. Otvorenie reportu obchodníkov.
-6. Kontrola pipeline a dashboardu.
+2. Otvorenie `Plán práce` a kontrola najbližších next stepov.
+3. Vyhľadanie zákazníka a otvorenie customer detailu.
+4. Pridanie jedného kontaktu.
+5. Import jedného CSV súboru.
+6. Otvorenie reportu obchodníkov.
+7. Kontrola pipeline a dashboardu.
 
-Ak všetkých 6 krokov funguje bez chyby, systém je z používateľského pohľadu vo veľmi dobrej kondícii.
+Ak všetkých 7 krokov funguje bez chyby, systém je z používateľského pohľadu vo veľmi dobrej kondícii.
 
 ## 7. Kedy použiť manuálne E2E a kedy automatické E2E
 

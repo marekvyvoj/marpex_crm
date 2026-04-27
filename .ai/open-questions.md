@@ -3,6 +3,7 @@
 ## Active Questions
 
 - Current-year customer plan is stored directly on the customer record (`annualRevenuePlan`, `annualRevenuePlanYear`). If the product later needs historical multi-year plans or ABRA-sourced plan import, decide whether to replace this with a dedicated yearly plan table.
+- User requested push and deployment for the planner feature, but the intended live target for this task still needs explicit reconfirmation before any remote mutation is executed.
 
 ## Resolved 2026-04-26
 

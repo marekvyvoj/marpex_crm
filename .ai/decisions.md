@@ -46,3 +46,10 @@
 
 - Decision: For the local `07_TEST_SUITE` PostgreSQL target, recover migration drift by backfilling `drizzle.__drizzle_migrations` for already-present `0003` to `0005`, then rerun `0006` instead of replaying older SQL or resetting the database.
 - Why: The local schema already contained ABRA tables from `0003`, but the ledger only recorded `0001` and `0002`, so a normal `drizzle-kit migrate` retried `0003` and failed on existing relations. Repairing the local ledger preserved data, kept the recovery minimal, and let the forward-safe `0006` migration add the missing columns cleanly.
+
+## 2026-04-27
+
+### Build The Planner Over Existing Next-Step Deadlines
+
+- Decision: Implement the salesperson planner by aggregating `nextStepDeadline` values from existing `visits` and open `opportunities`, exposed through `GET /api/dashboard/planner` and rendered in a dedicated `Plán práce` screen plus a dashboard preview.
+- Why: The repository already stores next-step dates in both workflows and already scopes dashboard data by the logged-in user. Reusing that surface delivered the feature without schema changes, duplicate task storage, or a second source of truth.
