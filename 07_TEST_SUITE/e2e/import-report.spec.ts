@@ -18,9 +18,9 @@ test("manažér vykoná CSV import end-to-end", async ({ page }) => {
   const suffix = randomUUID().slice(0, 6);
   const importName = `Phase5 Import Alpha ${suffix}`;
   const csv = [
-    "name,segment,category,currentRevenue,potential,contactFirstName,contactLastName,contactRole,contactEmail,contactPhone",
-    `${importName},oem,A,120000,350000,Ján,Novák,decision_maker,alpha-${suffix}@example.test,0900123456`,
-    `Phase5 Import Beta ${suffix},vyroba,B,80000,200000,Petra,Kováčová,influencer,beta-${suffix}@example.test,`,
+    "name,segment,currentRevenue,contactFirstName,contactLastName,contactRole,contactEmail,contactPhone",
+    `${importName},oem,120000,Ján,Novák,decision_maker,alpha-${suffix}@example.test,0900123456`,
+    `Phase5 Import Beta ${suffix},vyroba,80000,Petra,Kováčová,influencer,beta-${suffix}@example.test,`,
   ].join("\n");
 
   await loginAsManager(page);

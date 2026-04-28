@@ -43,12 +43,9 @@ describe("CustomerDetailPage", () => {
       district: "Nitra",
       region: "Nitriansky",
       currentRevenue: "120000",
-      profit: "18000",
       annualRevenuePlan: "180000",
-      annualRevenuePlanYear: 2026,
-      potential: "330000",
+      annualRevenuePlanYear: new Date().getFullYear(),
       shareOfWallet: 35,
-      strategicCategory: "B",
       createdAt: "2026-04-19T10:00:00.000Z",
     };
     let contacts = [
@@ -75,8 +72,6 @@ describe("CustomerDetailPage", () => {
             currentRevenue: body.currentRevenue !== undefined ? String(body.currentRevenue) : customer.currentRevenue,
             annualRevenuePlan: body.annualRevenuePlan !== undefined && body.annualRevenuePlan !== null ? String(body.annualRevenuePlan) : body.annualRevenuePlan === null ? null : customer.annualRevenuePlan,
             annualRevenuePlanYear: body.annualRevenuePlanYear !== undefined ? body.annualRevenuePlanYear : customer.annualRevenuePlanYear,
-            potential: body.potential !== undefined ? String(body.potential) : customer.potential,
-            strategicCategory: body.strategicCategory ?? customer.strategicCategory,
           };
         }
         return customer;
@@ -119,12 +114,13 @@ describe("CustomerDetailPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Upraviť" }));
     fireEvent.change(screen.getByPlaceholderText("Názov firmy"), { target: { value: "Phase5 Customer Updated" } });
-    fireEvent.change(screen.getByPlaceholderText("Potenciál €"), { target: { value: "450000" } });
+    fireEvent.change(screen.getByPlaceholderText(`Plán tržieb ${new Date().getFullYear()} €`), { target: { value: "450000" } });
     fireEvent.click(screen.getByRole("button", { name: "Uložiť" }));
 
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Phase5 Customer Updated" })).toBeInTheDocument();
     });
+    expect(screen.getByText(new RegExp(`Plán ${new Date().getFullYear()}:`))).toHaveTextContent("€ 450 000");
 
     fireEvent.click(screen.getByRole("button", { name: "+ Nový kontakt" }));
     fireEvent.change(screen.getByPlaceholderText("Meno"), { target: { value: "Nový" } });
@@ -156,12 +152,9 @@ describe("CustomerDetailPage", () => {
       district: "Trenčín",
       region: "Trenčiansky",
       currentRevenue: "80000",
-      profit: "9000",
       annualRevenuePlan: "100000",
       annualRevenuePlanYear: new Date().getFullYear(),
-      potential: "120000",
       shareOfWallet: null,
-      strategicCategory: "A",
       createdAt: "2026-04-19T10:00:00.000Z",
     };
     const contacts = [];

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api.ts";
-import { customerSegments, customerIndustries, strategicCategories, contactRoles } from "@marpex/domain";
+import { customerSegments, customerIndustries, contactRoles } from "@marpex/domain";
 
 interface Customer {
   id: string;
@@ -18,12 +18,9 @@ interface Customer {
   district: string | null;
   region: string | null;
   currentRevenue: string | null;
-  profit: string | null;
   annualRevenuePlan: string | null;
   annualRevenuePlanYear: number | null;
-  potential: string | null;
   shareOfWallet: number | null;
-  strategicCategory: string | null;
   createdAt: string;
 }
 
@@ -251,11 +248,8 @@ export function CustomerDetailPage() {
       district: customer!.district ?? undefined,
       region: customer!.region ?? undefined,
       currentRevenue: customer!.currentRevenue ?? undefined,
-      profit: customer!.profit ?? undefined,
       annualRevenuePlan: customer!.annualRevenuePlan ?? undefined,
       annualRevenuePlanYear: customer!.annualRevenuePlanYear ?? undefined,
-      potential: customer!.potential ?? undefined,
-      strategicCategory: customer!.strategicCategory ?? undefined,
     } as any);
     setEditMode(true);
   }
@@ -276,9 +270,6 @@ export function CustomerDetailPage() {
     if ((editForm as any).region !== undefined) body.region = (editForm as any).region || undefined;
     if ((editForm as any).currentRevenue !== undefined)
       body.currentRevenue = Number((editForm as any).currentRevenue) || undefined;
-    if ((editForm as any).profit !== undefined) {
-      body.profit = (editForm as any).profit === "" ? null : Number((editForm as any).profit) || 0;
-    }
     if ((editForm as any).annualRevenuePlan !== undefined) {
       if ((editForm as any).annualRevenuePlan === "") {
         body.annualRevenuePlan = null;
@@ -288,10 +279,6 @@ export function CustomerDetailPage() {
         body.annualRevenuePlanYear = currentYear;
       }
     }
-    if ((editForm as any).potential !== undefined)
-      body.potential = Number((editForm as any).potential) || undefined;
-    if ((editForm as any).strategicCategory)
-      body.strategicCategory = (editForm as any).strategicCategory;
     updateCustomer.mutate(body);
   }
 
@@ -327,14 +314,6 @@ export function CustomerDetailPage() {
           >
             <option value="">Odvetvie –</option>
             {customerIndustries.map((value) => <option key={value} value={value}>{formatIndustry(value)}</option>)}
-          </select>
-          <select
-            className="border border-gray-300 rounded px-3 py-2 text-sm"
-            value={(editForm as any).strategicCategory ?? ""}
-            onChange={(e) => setEditForm((f) => ({ ...f, strategicCategory: e.target.value }))}
-          >
-            <option value="">Kategória –</option>
-            {strategicCategories.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
           <input
             placeholder="IČO"
@@ -395,26 +374,10 @@ export function CustomerDetailPage() {
           <input
             type="number"
             min={0}
-            placeholder="Zisk €"
-            className="border border-gray-300 rounded px-3 py-2 text-sm"
-            value={(editForm as any).profit ?? ""}
-            onChange={(e) => setEditForm((f) => ({ ...f, profit: e.target.value } as any))}
-          />
-          <input
-            type="number"
-            min={0}
             placeholder={`Plán tržieb ${currentYear} €`}
             className="border border-gray-300 rounded px-3 py-2 text-sm"
             value={(editForm as any).annualRevenuePlan ?? ""}
             onChange={(e) => setEditForm((f) => ({ ...f, annualRevenuePlan: e.target.value } as any))}
-          />
-          <input
-            type="number"
-            min={0}
-            placeholder="Potenciál €"
-            className="border border-gray-300 rounded px-3 py-2 text-sm"
-            value={(editForm as any).potential ?? ""}
-            onChange={(e) => setEditForm((f) => ({ ...f, potential: e.target.value } as any))}
           />
           <div className="md:col-span-4 flex gap-2 justify-end">
             <button type="button" onClick={() => setEditMode(false)} className="text-sm text-gray-500 px-4 py-2 border border-gray-200 rounded hover:bg-gray-50">Zrušiť</button>
@@ -428,9 +391,6 @@ export function CustomerDetailPage() {
             <div className="flex flex-wrap gap-4 text-sm text-gray-600">
               <span>Odvetvie: <strong>{formatIndustry(customer.industry)}</strong></span>
               <span>Segment: <strong>{customer.segment}</strong></span>
-              {customer.strategicCategory && <span>Kategória: <strong>{customer.strategicCategory}</strong></span>}
-              <span>Potenciál: <strong>{fmt(customer.potential)}</strong></span>
-              {customer.profit && <span>Zisk: <strong>{fmt(customer.profit)}</strong></span>}
               {currentYearPlan && <span>Plán {currentYear}: <strong>{fmt(String(currentYearPlan))}</strong></span>}
               {customer.shareOfWallet != null && <span>SoW: <strong>{customer.shareOfWallet} %</strong></span>}
             </div>

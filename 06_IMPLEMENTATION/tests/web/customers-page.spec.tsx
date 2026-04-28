@@ -49,11 +49,10 @@ describe("CustomersPage", () => {
             ico: "12345678",
             city: "Nitra",
             region: "Nitriansky",
-            strategicCategory: "A",
             currentYearRevenue: "125000.50",
             previousYearRevenue: "83000.25",
-            profit: "23000",
-            potential: "220000",
+            annualRevenuePlan: "220000",
+            annualRevenuePlanYear: currentYear,
           },
         ];
       }
@@ -74,12 +73,14 @@ describe("CustomersPage", () => {
     expect(screen.getByText("Kraj")).toBeInTheDocument();
     expect(screen.getByText(`Tržby ${currentYear}`)).toBeInTheDocument();
     expect(screen.getByText(`Tržby ${currentYear - 1}`)).toBeInTheDocument();
+    expect(screen.getByText("Plán")).toBeInTheDocument();
     expect(screen.getAllByText("OEM").length).toBeGreaterThan(0);
     expect(screen.getByText("12345678")).toBeInTheDocument();
     expect(screen.getByText("Nitra")).toBeInTheDocument();
     expect(screen.getByText("Nitriansky")).toBeInTheDocument();
     expect(screen.getByText((_, element) => normalizeText(element?.textContent ?? "") === normalizeText(formatCurrency("125000.50")))).toBeInTheDocument();
     expect(screen.getByText((_, element) => normalizeText(element?.textContent ?? "") === normalizeText(formatCurrency("83000.25")))).toBeInTheDocument();
+    expect(screen.getByText((_, element) => normalizeText(element?.textContent ?? "") === normalizeText(formatCurrency("220000")))).toBeInTheDocument();
 
     fireEvent.change(screen.getAllByRole("combobox")[1], { target: { value: "mobile_equipment" } });
 

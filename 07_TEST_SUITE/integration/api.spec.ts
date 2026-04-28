@@ -390,10 +390,9 @@ describe("API integration", () => {
         district: "Nitra",
         region: "Nitriansky",
         currentRevenue: 120000,
-        profit: 18000,
-        potential: 280000,
+        annualRevenuePlan: 150000,
+        annualRevenuePlanYear: currentYear,
         shareOfWallet: 35,
-        strategicCategory: "B",
       },
     });
     expect(createResponse.statusCode).toBe(201);
@@ -453,7 +452,7 @@ describe("API integration", () => {
 
     const listResponse = await app.inject({
       method: "GET",
-      url: "/api/customers?q=Phase5%20Customer&segment=integrator&industry=oem&category=B",
+      url: "/api/customers?q=Phase5%20Customer&segment=integrator&industry=oem",
       headers: { cookie },
     });
     expect(listResponse.statusCode).toBe(200);
@@ -466,7 +465,8 @@ describe("API integration", () => {
       ico: "44556677",
       city: "Nitra",
       region: "Nitriansky",
-      profit: "18000.00",
+      annualRevenuePlan: "150000.00",
+      annualRevenuePlanYear: currentYear,
       currentYearRevenue: "125000.50",
       previousYearRevenue: "83000.25",
     });
@@ -489,7 +489,8 @@ describe("API integration", () => {
       postalCode: "949 01",
       district: "Nitra",
       region: "Nitriansky",
-      profit: "18000.00",
+      annualRevenuePlan: "150000.00",
+      annualRevenuePlanYear: currentYear,
       currentYearRevenue: "125000.50",
       previousYearRevenue: "83000.25",
     });
@@ -509,17 +510,16 @@ describe("API integration", () => {
       payload: {
         name: "Phase5 Customer Updated",
         city: "Zilina",
-        profit: 19500,
-        potential: 300000,
-        strategicCategory: "A",
+        annualRevenuePlan: 160000,
+        annualRevenuePlanYear: currentYear,
       },
     });
     expect(patchResponse.statusCode).toBe(200);
     expect(patchResponse.json()).toMatchObject({
       name: "Phase5 Customer Updated",
       city: "Zilina",
-      profit: "19500.00",
-      strategicCategory: "A",
+      annualRevenuePlan: "160000.00",
+      annualRevenuePlanYear: currentYear,
     });
 
     const visitsResponse = await app.inject({
@@ -720,7 +720,7 @@ describe("API integration", () => {
       method: "POST",
       url: "/api/import/customers",
       headers: { cookie, "content-type": "text/csv" },
-      payload: "name,segment,category",
+      payload: "name,segment,currentRevenue",
     });
     expect(headerOnly.statusCode).toBe(400);
   });
@@ -731,10 +731,10 @@ describe("API integration", () => {
     const validName = `Phase5 Import Alpha ${suffix}`;
 
     const csv = [
-      "name,segment,category,currentRevenue,potential,contactFirstName,contactLastName,contactRole,contactEmail,contactPhone",
-      `${validName},oem,A,120000,350000,Ján,Novák,decision_maker,alpha-${suffix}@example.test,0900123456`,
-      `Phase5 Import Broken ${suffix},invalid,A,10,20,,,,,`,
-      `Phase5 Import Beta ${suffix},vyroba,B,80000,200000,Petra,Kováčová,influencer,beta-${suffix}@example.test,`,
+      "name,segment,currentRevenue,contactFirstName,contactLastName,contactRole,contactEmail,contactPhone",
+      `${validName},oem,120000,Ján,Novák,decision_maker,alpha-${suffix}@example.test,0900123456`,
+      `Phase5 Import Broken ${suffix},invalid,10,,,,,`,
+      `Phase5 Import Beta ${suffix},vyroba,80000,Petra,Kováčová,influencer,beta-${suffix}@example.test,`,
     ].join("\n");
 
     const response = await app.inject({
@@ -995,7 +995,6 @@ describe("API integration", () => {
     const customer = await createTestCustomer({
       name: "Phase5 Dashboard Customer",
       currentRevenue: "50000",
-      potential: "750000",
     });
     const contact = await createTestContact(customer.id);
     await createTestVisit({

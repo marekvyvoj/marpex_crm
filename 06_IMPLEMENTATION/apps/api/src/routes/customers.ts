@@ -3,7 +3,7 @@ import { z } from "zod";
 import { eq, desc, ilike, and, inArray, sql, type SQL } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { customers, contacts, visits, opportunities, abraRevenues, abraQuotes, abraOrders } from "../db/schema.js";
-import { customerSchema, contactSchema, customerSegments, customerIndustries, strategicCategories } from "@marpex/domain";
+import { customerSchema, contactSchema, customerSegments, customerIndustries } from "@marpex/domain";
 import { writeAudit } from "../lib/audit.js";
 import { sendError } from "../lib/http.js";
 import { paginationQuerySchema, resolvePagination, setPaginationHeaders } from "../lib/pagination.js";
@@ -12,12 +12,16 @@ const customerListQuerySchema = paginationQuerySchema.extend({
   q: z.string().trim().min(1).optional(),
   segment: z.enum(customerSegments).optional(),
   industry: z.enum(customerIndustries).optional(),
-  category: z.enum(strategicCategories).optional(),
 });
 
 const bodyObjectSchema = z.record(z.string(), z.unknown());
 
 type CustomerListQuery = z.input<typeof customerListQuerySchema>;
+
+function stripLegacyCustomerFields<T extends { profit?: unknown; potential?: unknown; strategicCategory?: unknown }>(row: T) {
+  const { profit: _profit, potential: _potential, strategicCategory: _strategicCategory, ...customer } = row;
+  return customer;
+}
 
 async function withRevenueSummary<T extends { id: string; currentRevenue?: string | null }>(rows: T[]) {
   if (rows.length === 0) {
@@ -67,20 +71,19 @@ async function withRevenueSummary<T extends { id: string; currentRevenue?: strin
 }
 
 export const customerRoutes: FastifyPluginAsync = async (app) => {
-  // List customers — optional ?q= (name search), ?segment=, ?category=
+  // List customers — optional ?q= (name search), ?segment=, ?industry=
   app.get<{ Querystring: CustomerListQuery }>("/", async (request, reply) => {
-    const { q, segment, industry, category } = customerListQuerySchema.parse(request.query);
+    const { q, segment, industry } = customerListQuerySchema.parse(request.query);
     const conditions: SQL[] = [];
     if (q) conditions.push(ilike(customers.name, `%${q}%`));
     if (segment) conditions.push(eq(customers.segment, segment));
     if (industry) conditions.push(eq(customers.industry, industry));
-    if (category) conditions.push(eq(customers.strategicCategory, category));
     const where = conditions.length > 0 ? and(...conditions) : undefined;
     const pagination = resolvePagination(request.query);
 
     if (!pagination) {
       const rows = await db.select().from(customers).where(where).orderBy(customers.name);
-      return withRevenueSummary(rows);
+      return (await withRevenueSummary(rows)).map(stripLegacyCustomerFields);
     }
 
     const [{ total }] = await db
@@ -98,7 +101,7 @@ export const customerRoutes: FastifyPluginAsync = async (app) => {
 
     setPaginationHeaders(reply, total, pagination);
 
-    return withRevenueSummary(rows);
+    return (await withRevenueSummary(rows)).map(stripLegacyCustomerFields);
   });
 
   // Get single customer
@@ -112,7 +115,7 @@ export const customerRoutes: FastifyPluginAsync = async (app) => {
 
     if (!row) return sendError(reply, 404, "NOT_FOUND", "Not found");
     const [customer] = await withRevenueSummary([row]);
-    return customer;
+    return stripLegacyCustomerFields(customer);
   });
 
   // Create customer
@@ -134,16 +137,13 @@ export const customerRoutes: FastifyPluginAsync = async (app) => {
         district: body.district ?? null,
         region: body.region ?? null,
         currentRevenue: body.currentRevenue?.toString() ?? null,
-        profit: body.profit != null ? body.profit.toString() : null,
         annualRevenuePlan: body.annualRevenuePlan != null ? body.annualRevenuePlan.toString() : null,
         annualRevenuePlanYear: body.annualRevenuePlanYear ?? null,
-        potential: body.potential?.toString() ?? null,
         shareOfWallet: body.shareOfWallet ?? null,
-        strategicCategory: body.strategicCategory ?? null,
       })
       .returning();
     await writeAudit({ userId, action: "customer.create", entityType: "customer", entityId: row.id, payload: { name: row.name, segment: row.segment } });
-    return reply.code(201).send(row);
+    return reply.code(201).send(stripLegacyCustomerFields(row));
   });
 
   // Get contacts for a customer
@@ -184,12 +184,9 @@ export const customerRoutes: FastifyPluginAsync = async (app) => {
     if (body.district !== undefined) updateData.district = body.district;
     if (body.region !== undefined) updateData.region = body.region;
     if (body.currentRevenue !== undefined) updateData.currentRevenue = body.currentRevenue.toString();
-    if (body.profit !== undefined) updateData.profit = body.profit != null ? body.profit.toString() : null;
     if (body.annualRevenuePlan !== undefined) updateData.annualRevenuePlan = body.annualRevenuePlan != null ? body.annualRevenuePlan.toString() : null;
     if (body.annualRevenuePlanYear !== undefined) updateData.annualRevenuePlanYear = body.annualRevenuePlanYear;
-    if (body.potential !== undefined) updateData.potential = body.potential.toString();
     if (body.shareOfWallet !== undefined) updateData.shareOfWallet = body.shareOfWallet;
-    if (body.strategicCategory !== undefined) updateData.strategicCategory = body.strategicCategory;
 
     const [row] = await db
       .update(customers)
@@ -197,7 +194,7 @@ export const customerRoutes: FastifyPluginAsync = async (app) => {
       .where(eq(customers.id, request.params.id))
       .returning();
     if (!row) return sendError(reply, 404, "NOT_FOUND", "Not found");
-    return row;
+    return stripLegacyCustomerFields(row);
   });
 
   // Visits for a customer

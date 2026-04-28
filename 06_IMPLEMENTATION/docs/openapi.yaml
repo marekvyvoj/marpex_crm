@@ -98,11 +98,6 @@ paths:
           schema:
             type: string
             enum: [potravinarstvo, oem, mobile_equipment]
-        - in: query
-          name: category
-          schema:
-            type: string
-            enum: [A, B, C]
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/Limit'
       responses:
@@ -165,12 +160,15 @@ paths:
                   type: string
                 currentRevenue:
                   type: number
-                profit:
+                annualRevenuePlan:
                   type: number
                   nullable: true
-                strategicCategory:
-                  type: string
-                  enum: [A, B, C]
+                annualRevenuePlanYear:
+                  type: integer
+                  nullable: true
+                shareOfWallet:
+                  type: integer
+                  nullable: true
       responses:
         '201':
           description: Created customer
@@ -656,23 +654,14 @@ components:
         previousYearRevenue:
           type: string
           nullable: true
-        profit:
-          type: string
-          nullable: true
         annualRevenuePlan:
           type: string
           nullable: true
         annualRevenuePlanYear:
           type: integer
           nullable: true
-        potential:
-          type: string
-          nullable: true
         shareOfWallet:
           type: integer
-          nullable: true
-        strategicCategory:
-          type: string
           nullable: true
     Visit:
       type: object

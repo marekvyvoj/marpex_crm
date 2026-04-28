@@ -9,9 +9,9 @@ interface ImportResult {
   errorReport?: string[];
 }
 
-const EXAMPLE_CSV = `name,segment,category,currentRevenue,potential,contactFirstName,contactLastName,contactRole,contactEmail,contactPhone
-Firma ABC s.r.o.,oem,A,120000,350000,Ján,Novák,decision_maker,jan.novak@firma.sk,0900123456
-Beta Systémy,vyroba,B,80000,200000,Petra,Kováčová,influencer,petra@beta.sk,`;
+const EXAMPLE_CSV = `name,segment,currentRevenue,contactFirstName,contactLastName,contactRole,contactEmail,contactPhone
+Firma ABC s.r.o.,oem,120000,Ján,Novák,decision_maker,jan.novak@firma.sk,0900123456
+Beta Systémy,vyroba,80000,Petra,Kováčová,influencer,petra@beta.sk,`;
 
 export function ImportPage() {
   const [csvText, setCsvText] = useState("");
@@ -89,11 +89,10 @@ export function ImportPage() {
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-5 text-sm text-blue-800">
         <p className="font-medium mb-1">Formát CSV (prvý riadok = hlavička):</p>
         <code className="block overflow-x-auto whitespace-nowrap rounded bg-blue-100 px-2 py-1 text-xs">
-          name, segment, category, currentRevenue, potential, contactFirstName, contactLastName, contactRole, contactEmail, contactPhone
+          name, segment, currentRevenue, contactFirstName, contactLastName, contactRole, contactEmail, contactPhone
         </code>
         <p className="mt-2 text-xs">
           <strong>segment:</strong> oem | vyroba | integrator | servis | other &nbsp;|&nbsp;
-          <strong>category:</strong> A | B | C &nbsp;|&nbsp;
           <strong>contactRole:</strong> decision_maker | influencer | user
         </p>
       </div>

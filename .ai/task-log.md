@@ -53,7 +53,13 @@
 - Synced OpenAPI and Railway or launch docs to the new customer contract and normalized `VITE_API_URL` guidance.
 - Validated with `cd 06_IMPLEMENTATION && npm run typecheck` and `cd 06_IMPLEMENTATION && npm run phase5:test:web`; both passed.
 - Extended the nearest customer integration test in `07_TEST_SUITE/integration/api.spec.ts` for `industry`, SourceData fields, and profit updates.
-- Confirmed DB-backed validation is environment-blocked: the targeted Vitest scenario fails with `ECONNREFUSED` on `localhost:5432`, `docker compose up -d db` cannot run because Docker Desktop engine is unavailable, and no local PostgreSQL service or tools are installed.
+- Started Docker Desktop, brought up `docker compose` PostgreSQL locally, and confirmed the focused DB-backed customer integration scenario passes after local migrate and seed.
+- Fixed `xlsx` default export interop in `apps/api/src/lib/source-customers.ts` after local `db:seed` failed at runtime.
+- Fixed ABRA foreign-key cleanup ordering in `apps/api/src/seed.ts` so reseeding seeded customers no longer violates `abra_revenues_customer_id_fkey`.
+- Pushed validated commits to `origin/main`, triggered Railway redeploys for `marpex_crm` and `web`, and confirmed both services reached `SUCCESS`.
+- Added `06_IMPLEMENTATION/SourceData` because the Railway API service builds from the workspace root and otherwise could not see the Excel files during production seed.
+- Ran `npm -w apps/api run db:migrate` and `npm -w apps/api run db:seed` inside the live `marpex_crm` Railway service via SSH; both passed after the workspace-local SourceData copy was deployed.
+- Verified live production smoke checks: API health `200`, web root `200`, and authenticated manager login plus `/api/customers` access `200`.
 
 ### Salesperson Planner Discovery
 
@@ -70,6 +76,18 @@
 - Ran a strict review of the rebalance script, then tightened it to require the exact demo owner allowlist, scope visits and tasks to seeded records only, update the initial seeded stage-history author with opportunity owner changes, and close the shared DB pool.
 - Re-ran `get_errors` on the rebalance script and `cd 06_IMPLEMENTATION && npm run typecheck`: both passed.
 - Final reduced-assurance review found no remaining concrete code defects; only the live Railway `--write` execution and Safari runtime smoke test remain as operational checks.
+
+## 2026-04-28
+
+### Customer Plan And Demo Data Cleanup
+
+- Inspected the customer list and detail pages, customer route contract, CSV import flow, and seed script.
+- Confirmed that `annualRevenuePlan` already models the manual customer plan, while `potential` is only a seeded derived value and `profit` plus `strategicCategory` are currently carried mainly by UI or import surfaces.
+- Confirmed the current seed attaches contacts, visits, opportunities, tasks, and ABRA demo data to every SourceData customer, which is the root cause of the imported-customer pollution the user wants removed.
+- Replaced the customer-facing `Potenciál` column with `Plán` backed by `annualRevenuePlan`, and removed customer `Kategória` plus `Zisk` from the web customer flow and the documented API contract.
+- Removed legacy `category` and `potential` fields from the CSV customer import flow and updated the matching import UI help, integration coverage, and E2E fixtures.
+- Split `apps/api/src/seed.ts` into two datasets: all SourceData customers are now inserted clean under a dedicated source-system marker, while only six synthetic demo companies receive contacts, visits, opportunities, tasks, and ABRA demo data.
+- Validated with `cd 06_IMPLEMENTATION && npm run typecheck` and focused web Vitest runs for customer list, customer detail, and import page; DB-backed integration revalidation stayed blocked because no local PostgreSQL target or Docker engine was available on this workstation.
 
 ## Logging Rules
 

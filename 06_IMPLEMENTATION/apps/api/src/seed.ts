@@ -12,6 +12,7 @@ import { loadSourceCustomers, resolveSegmentForIndustry } from "./lib/source-cus
 
 const databaseUrl = requireEnv("DATABASE_URL");
 const seedSourceSystem = "marpex_demo_seed";
+const sourceDataCustomerSourceSystem = "source_data_seed";
 const salesUserCount = 6;
 
 // ABRA demo: seed ABRA data for first N customers
@@ -22,7 +23,6 @@ const visitsPerCustomer = 2;
 const opportunityCount = 120;
 const taskCount = 80;
 
-const strategicCategories: Array<(typeof schema.strategicCategoryEnum.enumValues)[number]> = ["A", "B", "C"];
 const contactRoles: Array<(typeof schema.contactRoleEnum.enumValues)[number]> = ["decision_maker", "influencer", "user"];
 const visitOpportunityTypes: Array<(typeof schema.visitOpportunityTypeEnum.enumValues)[number]> = ["project", "service", "cross_sell"];
 const opportunityStages: Array<(typeof schema.opportunityStageEnum.enumValues)[number]> = [
@@ -53,6 +53,101 @@ const abraDescriptions = [
   "Modernizácia pneumatického systému",
 ];
 
+type DemoCustomerSeed = {
+  key: string;
+  name: string;
+  segment: (typeof schema.customerSegmentEnum.enumValues)[number];
+  industry: (typeof schema.customerIndustryEnum.enumValues)[number] | null;
+  ico: string;
+  address: string;
+  city: string;
+  postalCode: string;
+  district: string;
+  region: string;
+  currentRevenue: string;
+};
+
+const demoCustomers: DemoCustomerSeed[] = [
+  {
+    key: "demo-customer-001",
+    name: "Demo Hydraulika Bratislava",
+    segment: "vyroba",
+    industry: null,
+    ico: "90000001",
+    address: "Pristavna 12",
+    city: "Bratislava",
+    postalCode: "821 09",
+    district: "Bratislava II",
+    region: "Bratislavsky",
+    currentRevenue: "85000.00",
+  },
+  {
+    key: "demo-customer-002",
+    name: "Demo Potraviny Nitra",
+    segment: "vyroba",
+    industry: "potravinarstvo",
+    ico: "90000002",
+    address: "Cabajska 4",
+    city: "Nitra",
+    postalCode: "949 01",
+    district: "Nitra",
+    region: "Nitriansky",
+    currentRevenue: "92000.00",
+  },
+  {
+    key: "demo-customer-003",
+    name: "Demo OEM Zilina",
+    segment: "oem",
+    industry: "oem",
+    ico: "90000003",
+    address: "Priemyselna 8",
+    city: "Zilina",
+    postalCode: "010 01",
+    district: "Zilina",
+    region: "Zilinsky",
+    currentRevenue: "134000.00",
+  },
+  {
+    key: "demo-customer-004",
+    name: "Demo Mobile Kosice",
+    segment: "vyroba",
+    industry: "mobile_equipment",
+    ico: "90000004",
+    address: "Rampova 16",
+    city: "Kosice",
+    postalCode: "040 01",
+    district: "Kosice I",
+    region: "Kosicky",
+    currentRevenue: "78000.00",
+  },
+  {
+    key: "demo-customer-005",
+    name: "Demo Integrator Trencin",
+    segment: "integrator",
+    industry: null,
+    ico: "90000005",
+    address: "Elektricna 6",
+    city: "Trencin",
+    postalCode: "911 01",
+    district: "Trencin",
+    region: "Trenciansky",
+    currentRevenue: "110000.00",
+  },
+  {
+    key: "demo-customer-006",
+    name: "Demo Servis Banska Bystrica",
+    segment: "servis",
+    industry: null,
+    ico: "90000006",
+    address: "Servisna 21",
+    city: "Banska Bystrica",
+    postalCode: "974 01",
+    district: "Banska Bystrica",
+    region: "Banskobystricky",
+    currentRevenue: "67000.00",
+  },
+];
+
 function pad(index: number) {
   return String(index).padStart(3, "0");
 }
@@ -75,8 +170,8 @@ async function main() {
   const pool = new pg.Pool({ connectionString: databaseUrl });
   const db = drizzle(pool, { schema });
   const sourceCustomers = loadSourceCustomers();
-  const customerCount = sourceCustomers.length;
-  const abraCustomerCount = Math.min(40, customerCount);
+  const sourceCustomerCount = sourceCustomers.length;
+  const demoCustomerCount = demoCustomers.length;
 
   const managerPw = await argon2.hash("manager123");
   const salesPw = await argon2.hash("sales123");
@@ -145,7 +240,7 @@ async function main() {
     const seededCustomers = await tx
       .select({ id: schema.customers.id })
       .from(schema.customers)
-      .where(eq(schema.customers.sourceSystem, seedSourceSystem));
+      .where(inArray(schema.customers.sourceSystem, [seedSourceSystem, sourceDataCustomerSourceSystem]));
 
     if (seededCustomers.length > 0) {
       const customerIds = seededCustomers.map((customer) => customer.id);
@@ -174,10 +269,8 @@ async function main() {
       await tx.delete(schema.customers).where(inArray(schema.customers.id, customerIds));
     }
 
-    const customerRows = sourceCustomers.map((sourceCustomer, index) => {
+    const sourceDataCustomerRows = sourceCustomers.map((sourceCustomer, index) => {
       const customerIndex = index + 1;
-      const currentRevenue = Number(sourceCustomer.currentRevenue);
-      const potential = currentRevenue * (1.25 + ((customerIndex % 5) * 0.12));
 
       return {
         name: sourceCustomer.name,
@@ -192,33 +285,54 @@ async function main() {
         district: sourceCustomer.district || null,
         region: sourceCustomer.region || null,
         currentRevenue: sourceCustomer.currentRevenue,
-        profit: sourceCustomer.profit,
-        potential: potential.toFixed(2),
-        shareOfWallet: 15 + ((customerIndex * 7) % 75),
-        strategicCategory: strategicCategories[index % strategicCategories.length],
-        sourceSystem: seedSourceSystem,
-        sourceRecordId: `customer-${pad(customerIndex)}`,
+        annualRevenuePlan: null,
+        annualRevenuePlanYear: null,
+        sourceSystem: sourceDataCustomerSourceSystem,
+        sourceRecordId: `source-customer-${pad(customerIndex)}`,
       };
     });
 
-    const insertedCustomers = await tx
+    await tx.insert(schema.customers).values(sourceDataCustomerRows);
+
+    const insertedDemoCustomers = await tx
       .insert(schema.customers)
-      .values(customerRows)
+      .values(demoCustomers.map((demoCustomer) => ({
+        name: demoCustomer.name,
+        segment: demoCustomer.segment,
+        industry: demoCustomer.industry,
+        ico: demoCustomer.ico,
+        address: demoCustomer.address,
+        city: demoCustomer.city,
+        postalCode: demoCustomer.postalCode,
+        district: demoCustomer.district,
+        region: demoCustomer.region,
+        currentRevenue: demoCustomer.currentRevenue,
+        annualRevenuePlan: null,
+        annualRevenuePlanYear: null,
+        sourceSystem: seedSourceSystem,
+        sourceRecordId: demoCustomer.key,
+      })))
       .returning({
         id: schema.customers.id,
         name: schema.customers.name,
         sourceRecordId: schema.customers.sourceRecordId,
       });
-    const customerBySeedId = new Map(insertedCustomers.map((customer) => [customer.sourceRecordId!, customer]));
-    const customerById = new Map(insertedCustomers.map((customer) => [customer.id, customer]));
+    const customerBySeedId = new Map(insertedDemoCustomers.map((customer) => [customer.sourceRecordId!, customer]));
+    const customerById = new Map(insertedDemoCustomers.map((customer) => [customer.id, customer]));
 
-    const contactRows = Array.from({ length: customerCount * contactsPerCustomer }, (_value, index) => {
+    const contactRows = Array.from({ length: demoCustomerCount * contactsPerCustomer }, (_value, index) => {
       const customerIndex = Math.floor(index / contactsPerCustomer) + 1;
       const contactIndex = (index % contactsPerCustomer) + 1;
-      const customer = customerBySeedId.get(`customer-${pad(customerIndex)}`);
+      const demoCustomer = demoCustomers[customerIndex - 1];
+
+      if (!demoCustomer) {
+        throw new Error(`Demo customer seed ${customerIndex} is missing.`);
+      }
+
+      const customer = customerBySeedId.get(demoCustomer.key);
 
       if (!customer) {
-        throw new Error(`Customer seed customer-${pad(customerIndex)} was not created.`);
+        throw new Error(`Demo customer seed ${demoCustomer.key} was not created.`);
       }
 
       return {
@@ -246,13 +360,19 @@ async function main() {
       contactsByCustomerId.set(contact.customerId, customerContacts);
     }
 
-    const visitRows = Array.from({ length: customerCount * visitsPerCustomer }, (_value, index) => {
+    const visitRows = Array.from({ length: demoCustomerCount * visitsPerCustomer }, (_value, index) => {
       const customerIndex = Math.floor(index / visitsPerCustomer) + 1;
       const visitIndex = index % visitsPerCustomer;
-      const customer = customerBySeedId.get(`customer-${pad(customerIndex)}`);
+      const demoCustomer = demoCustomers[customerIndex - 1];
+
+      if (!demoCustomer) {
+        throw new Error(`Demo customer seed ${customerIndex} is missing.`);
+      }
+
+      const customer = customerBySeedId.get(demoCustomer.key);
 
       if (!customer) {
-        throw new Error(`Customer seed customer-${pad(customerIndex)} was not created.`);
+        throw new Error(`Demo customer seed ${demoCustomer.key} was not created.`);
       }
 
       const customerContacts = contactsByCustomerId.get(customer.id) ?? [];
@@ -292,11 +412,17 @@ async function main() {
     await tx.insert(schema.visits).values(visitRows);
 
     const opportunityRows = Array.from({ length: opportunityCount }, (_value, index) => {
-      const customerIndex = (index % customerCount) + 1;
-      const customer = customerBySeedId.get(`customer-${pad(customerIndex)}`);
+      const customerIndex = (index % demoCustomerCount) + 1;
+      const demoCustomer = demoCustomers[customerIndex - 1];
+
+      if (!demoCustomer) {
+        throw new Error(`Demo customer seed ${customerIndex} is missing.`);
+      }
+
+      const customer = customerBySeedId.get(demoCustomer.key);
 
       if (!customer) {
-        throw new Error(`Customer seed customer-${pad(customerIndex)} was not created.`);
+        throw new Error(`Demo customer seed ${demoCustomer.key} was not created.`);
       }
 
       const stage = opportunityStages[index % opportunityStages.length];
@@ -359,7 +485,7 @@ async function main() {
 
     // ── ABRA demo data ────────────────────────────────────────────────────────
     // Wipe existing ABRA demo data for seeded customers
-    const abraCustomerIds = insertedCustomers.slice(0, abraCustomerCount).map((c) => c.id);
+  const abraCustomerIds = insertedDemoCustomers.map((customer) => customer.id);
 
     await tx.delete(schema.abraOrders).where(inArray(schema.abraOrders.customerId, abraCustomerIds));
     await tx.delete(schema.abraQuotes).where(inArray(schema.abraQuotes.customerId, abraCustomerIds));
@@ -430,7 +556,7 @@ async function main() {
     await tx.insert(schema.abraOrders).values(orderRows);
   });
 
-  console.log(`✅ Seed complete (${salesUserCount + 1} users, ${customerCount} customers, ${customerCount * contactsPerCustomer} contacts, ${customerCount * visitsPerCustomer} visits, ${opportunityCount} opportunities, ${taskCount} tasks, ${abraCustomerCount} customers with ABRA data)`);
+  console.log(`✅ Seed complete (${salesUserCount + 1} users, ${sourceCustomerCount} imported customers, ${demoCustomerCount} demo customers, ${demoCustomerCount * contactsPerCustomer} contacts, ${demoCustomerCount * visitsPerCustomer} visits, ${opportunityCount} opportunities, ${taskCount} tasks, ${demoCustomerCount} demo customers with ABRA data)`);
   await pool.end();
 }
 

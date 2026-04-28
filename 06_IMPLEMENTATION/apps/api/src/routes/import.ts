@@ -7,15 +7,13 @@ import { customerSegments, contactRoles } from "@marpex/domain";
 import { sendError } from "../lib/http.js";
 
 // Expected CSV columns (case-insensitive header match):
-// name, segment, category, currentRevenue, potential,
+// name, segment, currentRevenue,
 // contactFirstName, contactLastName, contactRole, contactEmail, contactPhone
 
 const rowSchema = z.object({
   name: z.string().min(1),
   segment: z.enum(customerSegments),
-  category: z.enum(["A", "B", "C"]).optional(),
   currentRevenue: z.string().optional(),
-  potential: z.string().optional(),
   contactFirstName: z.string().optional(),
   contactLastName: z.string().optional(),
   contactRole: z.enum(contactRoles).optional(),
@@ -26,9 +24,7 @@ const rowSchema = z.object({
 const CSV_HEADER_ALIASES: Record<string, keyof z.infer<typeof rowSchema>> = {
   name: "name",
   segment: "segment",
-  category: "category",
   currentrevenue: "currentRevenue",
-  potential: "potential",
   contactfirstname: "contactFirstName",
   contactlastname: "contactLastName",
   contactrole: "contactRole",
@@ -128,9 +124,7 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
           .values({
             name: parsed.name,
             segment: parsed.segment,
-            strategicCategory: parsed.category ?? null,
             currentRevenue: parsed.currentRevenue ? String(Number(parsed.currentRevenue)) : null,
-            potential: parsed.potential ? String(Number(parsed.potential)) : null,
             sourceSystem: "csv",
           })
           .returning();

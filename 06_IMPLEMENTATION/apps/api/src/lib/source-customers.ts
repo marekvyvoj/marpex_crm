@@ -15,7 +15,6 @@ export interface SourceCustomerRow {
   district: string;
   region: string;
   currentRevenue: string;
-  profit: string | null;
 }
 
 function normalizeText(value: unknown) {
@@ -126,7 +125,6 @@ export function loadSourceCustomers() {
         district: normalizeText(workbookRow["Okres"]),
         region: normalizeText(workbookRow["Kraj"]),
         currentRevenue: normalizeAmount(workbookRow["Tržby"]) ?? "0.00",
-        profit: normalizeAmount(workbookRow["Zisk"]),
       };
 
       if (!row.name || !row.ico) {

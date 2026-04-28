@@ -32,9 +32,7 @@ export async function getUserByEmail(email: string) {
 export async function createTestCustomer(overrides: Partial<{
   name: string;
   segment: "oem" | "vyroba" | "integrator" | "servis" | "other";
-  strategicCategory: "A" | "B" | "C";
   currentRevenue: string;
-  potential: string;
 }> = {}) {
   const { db, customers } = await getDbContext();
   const suffix = randomUUID().slice(0, 8);
@@ -43,9 +41,7 @@ export async function createTestCustomer(overrides: Partial<{
     .values({
       name: overrides.name ?? `Phase5 Customer ${suffix}`,
       segment: overrides.segment ?? "vyroba",
-      strategicCategory: overrides.strategicCategory ?? "A",
       currentRevenue: overrides.currentRevenue ?? null,
-      potential: overrides.potential ?? null,
       sourceSystem: TEST_SOURCE_SYSTEM,
       sourceRecordId: suffix,
     })

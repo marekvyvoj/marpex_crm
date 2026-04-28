@@ -34,10 +34,7 @@ export const customerSchema = z.object({
   district: z.string().trim().min(1).max(255).optional(),
   region: z.string().trim().min(1).max(255).optional(),
   currentRevenue: z.number().min(0).optional(),
-  profit: z.number().min(0).nullable().optional(),
-  potential: z.number().min(0).optional(),
   shareOfWallet: z.number().min(0).max(100).optional(),
-  strategicCategory: z.enum(strategicCategories).optional(),
   annualRevenuePlan: z.number().min(0).nullable().optional(),
   annualRevenuePlanYear: z.number().int().min(2000).max(2999).nullable().optional(),
 });

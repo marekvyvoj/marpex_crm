@@ -20,9 +20,7 @@ test("manažér prejde customer detail end-to-end", async ({ page }) => {
   const customer = await createTestCustomer({
     name: `Phase5 Customer Flow ${suffix}`,
     segment: "integrator",
-    strategicCategory: "B",
     currentRevenue: "120000",
-    potential: "330000",
   });
   const contact = await createTestContact(customer.id, {
     firstName: "Eva",
