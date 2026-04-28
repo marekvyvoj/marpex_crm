@@ -18,9 +18,6 @@ export const customerIndustries = [
 
 export type CustomerIndustry = (typeof customerIndustries)[number];
 
-export const strategicCategories = ["A", "B", "C"] as const;
-export type StrategicCategory = (typeof strategicCategories)[number];
-
 export const customerSchema = z.object({
   name: z.string().min(1),
   segment: z.enum(customerSegments),

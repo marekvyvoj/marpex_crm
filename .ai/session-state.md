@@ -1,9 +1,9 @@
 # Session State
 
 Last updated: 2026-04-28
-Current task: Customer list cleanup for imported SourceData companies, manual customer plan usage, demo-data isolation, and requested commit or push or deploy follow-up
-Current phase: Implementation complete; focused validation passed on typecheck plus web tests, with DB-backed validation blocked by missing local runtime
-Approval status: User explicitly requested commit, push, and deploy for this task. Code edits and remote mutation are in scope once the changed slice is validated.
+Current task: Customer table modernization, legacy customer DB column cleanup, and approved commit or push or deploy follow-through
+Current phase: Local implementation, migration validation, and release build complete; ready for commit, push, and deploy monitoring
+Approval status: User explicitly approved local Docker startup, local DB migration on a disposable target, and remote mutation via commit, push, and deploy.
 
 ## Repository Discovery
 
@@ -96,6 +96,14 @@ Approval status: User explicitly requested commit, push, and deploy for this tas
 - `cd 06_IMPLEMENTATION && npx vitest run tests/web/customers-page.spec.tsx tests/web/customer-detail-page.spec.tsx --config vitest.phase5.config.ts`: passed after replacing `Potenciál` with manual `Plán` in the customer UI.
 - `cd 06_IMPLEMENTATION && npm run typecheck`: passed after removing legacy customer `profit`, `potential`, and `category` usage from the shared schema, API routes, import flow, and seed.
 - `cd 06_IMPLEMENTATION && npx vitest run tests/web/customers-page.spec.tsx tests/web/customer-detail-page.spec.tsx tests/web/import-page.spec.tsx --config vitest.phase5.config.ts`: passed after the customer/import cleanup.
+- `cd 06_IMPLEMENTATION && npx vitest run tests/web/customers-page.spec.tsx --config vitest.phase5.config.ts`: passed after replacing the top search/filter bar with a sortable customer grid that filters inside the table header, removes the `Segment` column, adds `Okres`, and renames the leading revenue column to `Tržby Finstat 24/25`.
+- `cd 06_IMPLEMENTATION && npm run typecheck`: passed after adding journaled migration `0008_drop_legacy_customer_columns.sql` and removing legacy customer columns from the active API schema and shared domain exports.
+- `cd 06_IMPLEMENTATION && docker compose up -d db`: passed after starting Docker Desktop locally.
+- `cd 06_IMPLEMENTATION && npm run db:migrate`: passed on the local disposable PostgreSQL target with the journaled `0008_drop_legacy_customer_columns.sql` migration included.
+- `cd 06_IMPLEMENTATION && docker compose exec -T db psql -U marpex -d marpex_crm -c "SELECT column_name FROM information_schema.columns WHERE table_name = 'customers' AND column_name IN ('profit', 'potential', 'strategic_category') ORDER BY column_name;"`: returned 0 rows.
+- `cd 06_IMPLEMENTATION && docker compose exec -T db psql -U marpex -d marpex_crm -c "SELECT typname FROM pg_type WHERE typname = 'strategic_category';"`: returned 0 rows.
+- `cd 06_IMPLEMENTATION && npx vitest run tests/web/customers-page.spec.tsx --config vitest.phase5.config.ts`: passed again after adding the sticky two-row grid header.
+- `cd 06_IMPLEMENTATION && npm run build`: passed.
 - `cd 07_TEST_SUITE && npx vitest run integration/api.spec.ts --config vitest.config.ts -t "creates, filters, updates and expands customer detail resources|validates import content type and payload|imports customers from CSV and reports row errors"`: blocked by `ECONNREFUSED` because no local PostgreSQL instance was reachable on `localhost:5432`.
 - `cd 06_IMPLEMENTATION && docker compose up -d db`: failed on this workstation because the Docker Desktop Linux engine pipe was unavailable.
 - `cd 07_TEST_SUITE && npx tsc --noEmit --project tsconfig.json`: blocked because the validation workspace is missing the installed `node` type definitions in the current environment.
@@ -118,6 +126,9 @@ Approval status: User explicitly requested commit, push, and deploy for this tas
 - Same-session security pass for the SourceData slice confirmed that production mutation happened only after local disposable validation, explicit user approval, successful Railway redeploy, and direct execution inside the Railway API service.
 - Same-session reduced-assurance reviewer pass for the current customer-plan cleanup found no remaining code-level blockers after the follow-up fixes; residual risk is limited to the unexecuted DB-backed seed or integration path on this workstation.
 - Same-session security pass for the current task confirmed that the customer cleanup only changes local code plus the seed script and does not alter auth, env, cookies, or deployment wrappers.
+- Same-session reduced-assurance reviewer pass for the current customer-grid and legacy-column task found no remaining active runtime references to customer `profit`, `potential`, or `strategic_category`; the only remaining `potentialEur` matches are visit-related and intentional.
+- Same-session security pass for the current task confirmed the DB cleanup stays at the migration-file level only in this session. No destructive DB command or deploy action was run.
+- Same-session security pass for the current release step confirmed the only local mutation beyond code edits was a disposable Docker-backed PostgreSQL migration validation. Auth, env, cookies, deployment wrappers, and production data were not changed locally.
 
 ## Active Blockers And Manual Confirmation
 
@@ -130,6 +141,15 @@ Approval status: User explicitly requested commit, push, and deploy for this tas
 - `07_TEST_SUITE` TypeScript validation is environment-blocked until its dependencies or type packages are installed in this shell.
 
 ## Current Execution Notes
+
+- New task discovery confirmed the direct controlling slice for the requested UI change is `06_IMPLEMENTATION/apps/web/src/pages/CustomersPage.tsx`; the current search plus filter bar lives entirely in that page and there is no shared sortable table abstraction to preserve.
+- The customers list API already returns `district`, so adding the `Okres` column only needs a list-page type and render update unless validation reveals a contract mismatch.
+- Legacy customer DB columns `profit`, `potential`, and `strategic_category` still exist in `apps/api/src/db/schema.ts` and migrations, but the list API already strips them from responses. The next safe cleanup is a new additive migration plus schema or domain cleanup rather than rewriting old SQL files.
+- Focused validation plan for this task: first rerun `tests/web/customers-page.spec.tsx` after the list-page edit, then typecheck, then review whether a narrower migration-related check exists without executing DB mutations.
+- Implemented the customer grid directly in `apps/web/src/pages/CustomersPage.tsx` with sortable headers, per-column filters inside the table header, a new `Okres` column, no `Segment` column, and the renamed lead revenue header `Tržby Finstat 24/25`.
+- Added `apps/api/drizzle/0008_drop_legacy_customer_columns.sql` plus a matching Drizzle journal entry and removed the dropped fields from `apps/api/src/db/schema.ts`, `apps/api/src/routes/customers.ts`, and `packages/domain/src/customers/index.ts`.
+- Upgraded the new customer grid with a sticky two-row header inside a vertical scroll container so sorting and column filters stay visible on longer lists.
+- Local disposable validation now includes Docker-backed PostgreSQL startup, successful `db:migrate`, direct SQL confirmation that the dropped columns and enum type are gone, the focused customers-page Vitest slice, and a full monorepo build.
 
 - New task discovery confirmed the smallest controlling slices: customer list and detail UI in `apps/web`, customer input and filters in `packages/domain` plus `apps/api/src/routes/customers.ts`, CSV import help plus parsing in `apps/web/src/pages/ImportPage.tsx` and `apps/api/src/routes/import.ts`, and seeded SourceData enrichment in `apps/api/src/seed.ts`.
 - Working hypothesis: the requested `Plan` column should reuse the existing nullable `annualRevenuePlan` field, while `profit`, `strategicCategory`, and seeded `potential` should stop driving customer UI and import flows.

@@ -29,12 +29,6 @@ export const customerIndustryEnum = pgEnum("customer_industry", [
   "mobile_equipment",
 ]);
 
-export const strategicCategoryEnum = pgEnum("strategic_category", [
-  "A",
-  "B",
-  "C",
-]);
-
 export const contactRoleEnum = pgEnum("contact_role", [
   "decision_maker",
   "influencer",
@@ -87,12 +81,9 @@ export const customers = pgTable("customers", {
   district: varchar("district", { length: 255 }),
   region: varchar("region", { length: 255 }),
   currentRevenue: numeric("current_revenue", { precision: 14, scale: 2 }),
-  profit: numeric("profit", { precision: 14, scale: 2 }),
   annualRevenuePlan: numeric("annual_revenue_plan", { precision: 14, scale: 2 }),
   annualRevenuePlanYear: integer("annual_revenue_plan_year"),
-  potential: numeric("potential", { precision: 14, scale: 2 }),
   shareOfWallet: integer("share_of_wallet"),
-  strategicCategory: strategicCategoryEnum("strategic_category"),
   sourceSystem: varchar("source_system", { length: 50 }),
   sourceRecordId: varchar("source_record_id", { length: 255 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

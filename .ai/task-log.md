@@ -89,6 +89,18 @@
 - Split `apps/api/src/seed.ts` into two datasets: all SourceData customers are now inserted clean under a dedicated source-system marker, while only six synthetic demo companies receive contacts, visits, opportunities, tasks, and ABRA demo data.
 - Validated with `cd 06_IMPLEMENTATION && npm run typecheck` and focused web Vitest runs for customer list, customer detail, and import page; DB-backed integration revalidation stayed blocked because no local PostgreSQL target or Docker engine was available on this workstation.
 
+### Customer Grid Modernization And Legacy Column Drop Migration
+
+- Replaced the customers-page search and filter bar with a sortable in-table grid using per-column header filters.
+- Removed the `Segment` column from the customer list, added `Okres`, and renamed the lead revenue header to `Tržby Finstat 24/25`.
+- Kept the new grid client-side because the existing customers API does not expose per-column sort or filter parameters for the requested fields.
+- Added forward-safe migration `apps/api/drizzle/0008_drop_legacy_customer_columns.sql` and journal entry `_journal.json` to drop `profit`, `potential`, and `strategic_category`.
+- Removed those legacy fields from the active Drizzle schema, customer API route handling, and shared customer domain exports.
+- Added a sticky two-row header and vertical scroll container to the new customer grid so sort and filter controls remain visible.
+- Started Docker Desktop locally, brought up `docker compose` PostgreSQL, and confirmed `cd 06_IMPLEMENTATION && npm run db:migrate` applied the new drop migration on the disposable DB target.
+- Verified with direct SQL queries that the `customers` table no longer has `profit`, `potential`, or `strategic_category` and that the `strategic_category` enum type is gone.
+- Validated with `cd 06_IMPLEMENTATION && npx vitest run tests/web/customers-page.spec.tsx --config vitest.phase5.config.ts`, `cd 06_IMPLEMENTATION && npm run typecheck`, and `cd 06_IMPLEMENTATION && npm run build`; all passed.
+
 ## Logging Rules
 
 - Append short factual entries only.

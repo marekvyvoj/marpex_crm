@@ -18,11 +18,6 @@ const bodyObjectSchema = z.record(z.string(), z.unknown());
 
 type CustomerListQuery = z.input<typeof customerListQuerySchema>;
 
-function stripLegacyCustomerFields<T extends { profit?: unknown; potential?: unknown; strategicCategory?: unknown }>(row: T) {
-  const { profit: _profit, potential: _potential, strategicCategory: _strategicCategory, ...customer } = row;
-  return customer;
-}
-
 async function withRevenueSummary<T extends { id: string; currentRevenue?: string | null }>(rows: T[]) {
   if (rows.length === 0) {
     return [] as Array<T & { currentYearRevenue: string | null; previousYearRevenue: string | null }>;
@@ -83,7 +78,7 @@ export const customerRoutes: FastifyPluginAsync = async (app) => {
 
     if (!pagination) {
       const rows = await db.select().from(customers).where(where).orderBy(customers.name);
-      return (await withRevenueSummary(rows)).map(stripLegacyCustomerFields);
+      return withRevenueSummary(rows);
     }
 
     const [{ total }] = await db
@@ -101,7 +96,7 @@ export const customerRoutes: FastifyPluginAsync = async (app) => {
 
     setPaginationHeaders(reply, total, pagination);
 
-    return (await withRevenueSummary(rows)).map(stripLegacyCustomerFields);
+    return withRevenueSummary(rows);
   });
 
   // Get single customer
@@ -115,7 +110,7 @@ export const customerRoutes: FastifyPluginAsync = async (app) => {
 
     if (!row) return sendError(reply, 404, "NOT_FOUND", "Not found");
     const [customer] = await withRevenueSummary([row]);
-    return stripLegacyCustomerFields(customer);
+    return customer;
   });
 
   // Create customer
@@ -143,7 +138,7 @@ export const customerRoutes: FastifyPluginAsync = async (app) => {
       })
       .returning();
     await writeAudit({ userId, action: "customer.create", entityType: "customer", entityId: row.id, payload: { name: row.name, segment: row.segment } });
-    return reply.code(201).send(stripLegacyCustomerFields(row));
+    return reply.code(201).send(row);
   });
 
   // Get contacts for a customer
@@ -194,7 +189,7 @@ export const customerRoutes: FastifyPluginAsync = async (app) => {
       .where(eq(customers.id, request.params.id))
       .returning();
     if (!row) return sendError(reply, 404, "NOT_FOUND", "Not found");
-    return stripLegacyCustomerFields(row);
+    return row;
   });
 
   // Visits for a customer

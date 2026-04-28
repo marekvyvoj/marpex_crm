@@ -2,6 +2,16 @@
 
 ## 2026-04-26
 
+### Keep Customer Grid Interactions Client-Side
+
+- Decision: Move the customer list page from server-query search or filter controls above the table to a client-side sortable grid with per-column header filters.
+- Why: The current customers API only supports coarse `q`, `segment`, and `industry` filters, while the requested UX needs column-local sorting and filtering for fields like `ico`, `district`, and revenue without widening the API contract. The current list size is still small enough for an in-page grid.
+
+### Drop Legacy Customer Columns Via A New Migration
+
+- Decision: Remove `profit`, `potential`, and `strategic_category` through a new `0008_drop_legacy_customer_columns.sql` migration and a matching Drizzle journal entry instead of editing older migrations.
+- Why: Earlier production drift showed that manual SQL files must stay append-only and journaled. A new forward-safe migration is safer than rewriting historical schema files that may already be applied in local or remote databases.
+
 ### Treat `06_IMPLEMENTATION` As The Code Root
 
 - Decision: Repository instructions and playbooks treat `06_IMPLEMENTATION/` as the authoritative application workspace.

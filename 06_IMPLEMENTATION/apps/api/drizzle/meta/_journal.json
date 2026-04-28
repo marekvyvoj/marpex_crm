@@ -50,6 +50,13 @@
       "when": 1760000006000,
       "tag": "0007_customer_source_data_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1760000007000,
+      "tag": "0008_drop_legacy_customer_columns",
+      "breakpoints": true
     }
   ]
 }
