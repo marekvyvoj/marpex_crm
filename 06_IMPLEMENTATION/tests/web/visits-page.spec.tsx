@@ -6,6 +6,11 @@ import { VisitsPage } from "../../apps/web/src/pages/VisitsPage.tsx";
 import { renderWithProviders } from "./helpers/render.tsx";
 
 const apiMock = vi.fn();
+const useAuthMock = vi.fn();
+
+vi.mock("../../apps/web/src/components/AuthProvider.tsx", () => ({
+  useAuth: () => useAuthMock(),
+}));
 
 vi.mock("../../apps/web/src/lib/api.ts", () => ({
   api: (...args: unknown[]) => apiMock(...args),
@@ -27,8 +32,17 @@ const selectedContact = {
 describe("VisitsPage", () => {
   beforeEach(() => {
     apiMock.mockReset();
+    useAuthMock.mockReset();
+    useAuthMock.mockReturnValue({
+      user: { id: "sales-1", name: "Obchodník", email: "sales@example.test", role: "sales" },
+      loading: false,
+    });
     apiMock.mockImplementation((path: string, options?: { method?: string; body?: string }) => {
       if (path === "/customers") {
+        return Promise.resolve(customers);
+      }
+
+      if (path === "/customers?scope=all") {
         return Promise.resolve(customers);
       }
 
@@ -55,6 +69,10 @@ describe("VisitsPage", () => {
             lateFlag: false,
           },
         ]);
+      }
+
+      if (path === "/visits?scope=all") {
+        return Promise.resolve([]);
       }
 
       if (path === `/customers/${selectedCustomer.id}/contacts`) {
@@ -93,5 +111,18 @@ describe("VisitsPage", () => {
 
     expect(await screen.findByRole("link", { name: "2026-04-25" })).toHaveAttribute("href", "/visits/visit-row-1");
     expect(screen.getByText("Treba preveriť cenu servisu a SLA.")).toBeInTheDocument();
+  });
+
+  it("lets a salesperson switch the visits view to all salespeople", async () => {
+    renderWithProviders(<VisitsPage />);
+
+    await waitFor(() => expect(apiMock).toHaveBeenCalledWith("/visits"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Všetky návštevy" }));
+
+    await waitFor(() => {
+      expect(apiMock).toHaveBeenCalledWith("/visits?scope=all");
+      expect(apiMock).toHaveBeenCalledWith("/customers?scope=all");
+    });
   });
 });

@@ -34,6 +34,7 @@ export const customerSchema = z.object({
   shareOfWallet: z.number().min(0).max(100).optional(),
   annualRevenuePlan: z.number().min(0).nullable().optional(),
   annualRevenuePlanYear: z.number().int().min(2000).max(2999).nullable().optional(),
+  salespersonId: z.string().uuid().nullable().optional(),
 });
 
 export type CustomerInput = z.infer<typeof customerSchema>;

@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "../components/AuthProvider.tsx";
+import { ScopeToggle } from "../components/ScopeToggle.tsx";
 import { api } from "../lib/api.ts";
+import { withViewScope, type ViewScope } from "../lib/view-scope.ts";
 import { customerSegments, customerIndustries } from "@marpex/domain";
 
 interface Customer {
@@ -17,10 +20,20 @@ interface Customer {
   previousYearRevenue: string | null;
   annualRevenuePlan: string | null;
   annualRevenuePlanYear: number | null;
+  salespersonId: string | null;
+  salespersonName: string | null;
+}
+
+interface UserOption {
+  id: string;
+  name: string;
+  role: "manager" | "sales";
+  active: boolean;
 }
 
 type SortKey =
   | "name"
+  | "salespersonName"
   | "industry"
   | "ico"
   | "city"
@@ -34,6 +47,7 @@ type SortDirection = "asc" | "desc";
 
 interface ColumnFilters {
   name: string;
+  salespersonName: string;
   industry: string;
   ico: string;
   city: string;
@@ -46,6 +60,7 @@ interface ColumnFilters {
 
 const DEFAULT_SORT_DIRECTIONS: Record<SortKey, SortDirection> = {
   name: "asc",
+  salespersonName: "asc",
   industry: "asc",
   ico: "asc",
   city: "asc",
@@ -58,6 +73,7 @@ const DEFAULT_SORT_DIRECTIONS: Record<SortKey, SortDirection> = {
 
 const EMPTY_FILTERS: ColumnFilters = {
   name: "",
+  salespersonName: "",
   industry: "",
   ico: "",
   city: "",
@@ -124,6 +140,8 @@ function getSortableValue(customer: Customer, key: SortKey, currentYear: number)
   switch (key) {
     case "name":
       return customer.name.toLocaleLowerCase("sk-SK");
+    case "salespersonName":
+      return customer.salespersonName?.toLocaleLowerCase("sk-SK") ?? null;
     case "industry":
       return formatIndustry(customer.industry).toLocaleLowerCase("sk-SK");
     case "ico":
@@ -183,9 +201,12 @@ function sortIndicator(activeKey: SortKey, sortKey: SortKey, sortDirection: Sort
 }
 
 export function CustomersPage() {
+  const { user, loading: authLoading } = useAuth();
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
+  const [scope, setScope] = useState<ViewScope>("mine");
   const currentYear = new Date().getFullYear();
+  const requestedScope: ViewScope = user?.role === "sales" ? scope : "all";
 
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>(EMPTY_FILTERS);
   const [sortState, setSortState] = useState<{ key: SortKey; direction: SortDirection }>({
@@ -197,11 +218,21 @@ export function CustomersPage() {
   const [name, setName] = useState("");
   const [segment, setSegment] = useState<string>(customerSegments[0]);
   const [industry, setIndustry] = useState("");
+  const [salespersonId, setSalespersonId] = useState("");
 
   const { data: customers = [], isLoading } = useQuery<Customer[]>({
-    queryKey: ["customers"],
-    queryFn: () => api("/customers"),
+    queryKey: ["customers", requestedScope],
+    queryFn: () => api(withViewScope("/customers", requestedScope)),
+    enabled: !authLoading,
   });
+
+  const { data: salesUsers = [] } = useQuery<UserOption[]>({
+    queryKey: ["users", "sales-options"],
+    queryFn: () => api("/users"),
+    enabled: !authLoading && user?.role === "manager",
+  });
+
+  const activeSalesUsers = salesUsers.filter((candidate) => candidate.role === "sales" && candidate.active);
 
   const create = useMutation({
     mutationFn: () =>
@@ -211,6 +242,7 @@ export function CustomersPage() {
           name,
           segment,
           industry: industry || undefined,
+          salespersonId: user?.role === "manager" ? (salespersonId || null) : undefined,
         }),
       }),
     onSuccess: () => {
@@ -218,6 +250,7 @@ export function CustomersPage() {
       setShowForm(false);
       setName("");
       setIndustry("");
+      setSalespersonId("");
     },
   });
 
@@ -228,6 +261,7 @@ export function CustomersPage() {
       const currentYearPlan = resolveCurrentYearPlan(customer, currentYear);
 
       return containsText(customer.name, columnFilters.name)
+        && containsText(customer.salespersonName, columnFilters.salespersonName)
         && (!columnFilters.industry || customer.industry === columnFilters.industry)
         && containsText(customer.ico, columnFilters.ico)
         && containsText(customer.city, columnFilters.city)
@@ -262,16 +296,28 @@ export function CustomersPage() {
     });
   }
 
+  if (authLoading) {
+    return <p className="text-gray-400 text-sm">Načítavam…</p>;
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <h2 className="text-xl font-bold">Zákazníci</h2>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="bg-blue-600 text-white text-sm px-4 py-2 rounded hover:bg-blue-700"
-        >
-          {showForm ? "Zavrieť" : "+ Nový zákazník"}
-        </button>
+        <div className="space-y-2">
+          <h2 className="text-xl font-bold">Zákazníci</h2>
+          {user?.role === "sales" && (
+            <p className="text-sm text-slate-500">Predvolene vidíte len firmy priradené sebe. V prípade potreby si môžete zobraziť aj celé portfólio.</p>
+          )}
+        </div>
+        <div className="flex flex-col gap-2 sm:items-end">
+          {user?.role === "sales" && <ScopeToggle scope={scope} onChange={setScope} mineLabel="Moje firmy" allLabel="Všetci obchodníci" />}
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="bg-blue-600 text-white text-sm px-4 py-2 rounded hover:bg-blue-700"
+          >
+            {showForm ? "Zavrieť" : "+ Nový zákazník"}
+          </button>
+        </div>
       </div>
 
       {showForm && (
@@ -293,6 +339,12 @@ export function CustomersPage() {
             <option value="">Odvetvie</option>
             {customerIndustries.map((value) => <option key={value} value={value}>{formatIndustry(value)}</option>)}
           </select>
+          {user?.role === "manager" && (
+            <select value={salespersonId} onChange={(e) => setSalespersonId(e.target.value)} className="border border-gray-300 rounded px-3 py-2 text-sm">
+              <option value="">Obchodník – nepriradené</option>
+              {activeSalesUsers.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}
+            </select>
+          )}
           <button type="submit" className="bg-blue-600 text-white text-sm rounded px-4 py-2 hover:bg-blue-700">
             Uložiť
           </button>
@@ -337,7 +389,7 @@ export function CustomersPage() {
           </div>
 
           <div className="max-h-[70vh] overflow-auto">
-            <table className="w-full min-w-[1380px] border-separate border-spacing-0 text-sm">
+            <table className="w-full min-w-[1560px] border-separate border-spacing-0 text-sm">
               <thead>
                 <tr className="bg-white text-left text-slate-500">
                   <th className="sticky left-0 top-0 z-40 h-14 border-b border-slate-200 bg-white px-4 py-3 align-middle">
@@ -348,6 +400,16 @@ export function CustomersPage() {
                     >
                       <span>Názov</span>
                       <span className="text-xs text-slate-400">{sortIndicator(sortState.key, "name", sortState.direction)}</span>
+                    </button>
+                  </th>
+                  <th className="sticky top-0 z-30 h-14 border-b border-slate-200 bg-white px-4 py-3 align-middle">
+                    <button
+                      type="button"
+                      onClick={() => toggleSort("salespersonName")}
+                      className="flex w-full items-center justify-between gap-2 font-semibold text-slate-700 transition hover:text-slate-950"
+                    >
+                      <span>Obchodník</span>
+                      <span className="text-xs text-slate-400">{sortIndicator(sortState.key, "salespersonName", sortState.direction)}</span>
                     </button>
                   </th>
                   <th className="sticky top-0 z-30 h-14 border-b border-slate-200 bg-white px-4 py-3 align-middle">
@@ -443,6 +505,15 @@ export function CustomersPage() {
                     />
                   </th>
                   <th className="sticky top-14 z-30 border-b border-slate-200 bg-slate-50/95 px-4 pb-3 pt-1 backdrop-blur">
+                    <input
+                      type="search"
+                      placeholder="Filtrovať obchodníka"
+                      value={columnFilters.salespersonName}
+                      onChange={(event) => updateColumnFilter("salespersonName", event.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-400"
+                    />
+                  </th>
+                  <th className="sticky top-14 z-30 border-b border-slate-200 bg-slate-50/95 px-4 pb-3 pt-1 backdrop-blur">
                     <select
                       value={columnFilters.industry}
                       onChange={(event) => updateColumnFilter("industry", event.target.value)}
@@ -526,6 +597,7 @@ export function CustomersPage() {
                     <td className="sticky left-0 z-10 border-b border-slate-100 bg-white px-4 py-3 font-medium">
                       <Link to={`/customers/${customer.id}`} className="text-blue-600 hover:underline">{customer.name}</Link>
                     </td>
+                    <td className="border-b border-slate-100 px-4 py-3 text-slate-700">{customer.salespersonName || "Nepriradené"}</td>
                     <td className="border-b border-slate-100 px-4 py-3 text-slate-700">{formatIndustry(customer.industry)}</td>
                     <td className="border-b border-slate-100 px-4 py-3 text-slate-700">{customer.ico || "–"}</td>
                     <td className="border-b border-slate-100 px-4 py-3 text-slate-700">{customer.city || "–"}</td>

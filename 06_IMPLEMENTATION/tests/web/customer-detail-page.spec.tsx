@@ -7,6 +7,11 @@ import { CustomerDetailPage } from "../../apps/web/src/pages/CustomerDetailPage.
 import { renderWithProviders } from "./helpers/render.tsx";
 
 const apiMock = vi.fn();
+const useAuthMock = vi.fn();
+
+vi.mock("../../apps/web/src/components/AuthProvider.tsx", () => ({
+  useAuth: () => useAuthMock(),
+}));
 
 vi.mock("../../apps/web/src/lib/api.ts", () => ({
   api: (...args: unknown[]) => apiMock(...args),
@@ -26,6 +31,11 @@ function renderCustomerDetail() {
 describe("CustomerDetailPage", () => {
   beforeEach(() => {
     apiMock.mockReset();
+    useAuthMock.mockReset();
+    useAuthMock.mockReturnValue({
+      user: { id: "sales-1", name: "Obchodník", email: "sales@example.test", role: "sales" },
+      loading: false,
+    });
   });
 
   it("updates customer header data and creates a contact", async () => {
@@ -46,6 +56,8 @@ describe("CustomerDetailPage", () => {
       annualRevenuePlan: "180000",
       annualRevenuePlanYear: new Date().getFullYear(),
       shareOfWallet: 35,
+      salespersonId: "sales-1",
+      salespersonName: "Rastislav Bušík",
       createdAt: "2026-04-19T10:00:00.000Z",
     };
     let contacts = [
@@ -106,6 +118,7 @@ describe("CustomerDetailPage", () => {
     expect(await screen.findByRole("heading", { name: "Phase5 Customer Detail" })).toBeInTheDocument();
     expect(screen.getByText(/Odvetvie:/)).toHaveTextContent("OEM");
     expect(screen.getByText(/Segment:/)).toHaveTextContent("integrator");
+    expect(screen.getByText(/Obchodník:/)).toHaveTextContent("Rastislav Bušík");
     expect(screen.getByText(/IČO:/)).toHaveTextContent("44556677");
     expect(screen.getByText(/DIČ:/)).toHaveTextContent("2023001122");
     expect(screen.getByText(/IČ DPH:/)).toHaveTextContent("SK2023001122");
@@ -155,6 +168,8 @@ describe("CustomerDetailPage", () => {
       annualRevenuePlan: "100000",
       annualRevenuePlanYear: new Date().getFullYear(),
       shareOfWallet: null,
+      salespersonId: null,
+      salespersonName: null,
       createdAt: "2026-04-19T10:00:00.000Z",
     };
     const contacts = [];

@@ -3,11 +3,11 @@
 ## Active Questions
 
 - Current-year customer plan is stored directly on the customer record (`annualRevenuePlan`, `annualRevenuePlanYear`). If the product later needs historical multi-year plans or ABRA-sourced plan import, decide whether to replace this with a dedicated yearly plan table.
-- User requested commit, push, and deployment for the current SourceData and login feature, but the intended live target and execution approval still need explicit reconfirmation before any remote mutation is executed.
-- Local DB-backed customer validation is blocked on this workstation because Docker Desktop is unavailable and no local PostgreSQL service or client tools are installed. Decide whether to provide a disposable DB runtime or proceed with reduced assurance.
-- The SourceData replacement is implemented through migration plus seed. Decide whether the actual data cutover should run on a confirmed local disposable database first or directly on an approved remote environment.
+- Existing customers now support `salespersonId`, but the real business mapping of current firms to the five requested named salespeople still needs a manual assignment or a later approved bulk-import strategy.
 - Existing live demo data still need a one-time owner rebalance from inside the Railway `marpex_crm` service environment, because local `railway run` uses a `postgres.railway.internal` hostname that is not reachable from the workstation shell.
 - Safari compatibility is now build-hardened with legacy bundles, but an actual deployed Safari or iOS Safari smoke run is still pending.
+- Consider whether the duplicated workbook set under `06_IMPLEMENTATION/SourceData` should remain the long-term packaging strategy, or whether the Railway API service should later switch to a repo-root build context or an explicit import storage approach.
+- Local DB-backed verification for the new salesperson ownership slice is still blocked until PostgreSQL is reachable on `localhost:5432`.
 
 ## Resolved 2026-04-26
 

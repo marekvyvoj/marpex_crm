@@ -95,3 +95,13 @@
 
 - Decision: Trim and lowercase user emails on login and user creation, and compare login lookups case-insensitively in the API.
 - Why: The live Railway incident was reproducible only by email letter case. `obchodnik1@marpex.sk` authenticated successfully, while `Obchodnik1@marpex.sk` with the same password returned `401` and then escalated into the existing IP-based rate limiter. Canonicalizing the email at the auth boundary fixes the user-visible failure without changing cookies, sessions, or deployment config.
+
+### Use A Same-Origin Web Proxy For Railway Auth
+
+- Decision: Serve the production web app behind `nginx` and proxy `/api` from the web origin to the Railway API service, while keeping the frontend API base on `/api`.
+- Why: Safari was still failing after the email-case fix because the web service called the API on a different Railway origin via `VITE_API_URL`, which made the session cookie cross-site. The same-origin proxy keeps auth cookies first-party and removes browser-specific third-party-cookie behavior from the login flow.
+
+### Default Sales Views Use Customer Ownership Scope
+
+- Decision: Add a nullable customer-level salesperson assignment and use `scope=mine|all` on customer, dashboard, visit, and opportunity list views so salespeople default to their own portfolio while managers keep the global view.
+- Why: The existing app already scoped some activity data by `ownerId`, but customers had no ownership field and the main list screens defaulted to global data. A shared `mine`/`all` model preserves the user's requested default isolation without hard-blocking cross-sales visibility when someone explicitly asks for it.

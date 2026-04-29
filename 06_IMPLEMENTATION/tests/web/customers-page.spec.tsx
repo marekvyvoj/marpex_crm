@@ -7,6 +7,11 @@ import { CustomersPage } from "../../apps/web/src/pages/CustomersPage.tsx";
 import { renderWithProviders } from "./helpers/render.tsx";
 
 const apiMock = vi.fn();
+const useAuthMock = vi.fn();
+
+vi.mock("../../apps/web/src/components/AuthProvider.tsx", () => ({
+  useAuth: () => useAuthMock(),
+}));
 
 vi.mock("../../apps/web/src/lib/api.ts", () => ({
   api: (...args: unknown[]) => apiMock(...args),
@@ -33,6 +38,11 @@ function renderCustomersPage() {
 describe("CustomersPage", () => {
   beforeEach(() => {
     apiMock.mockReset();
+    useAuthMock.mockReset();
+    useAuthMock.mockReturnValue({
+      user: { id: "sales-1", name: "Obchodník", email: "sales@example.test", role: "sales" },
+      loading: false,
+    });
   });
 
   it("shows sortable customer columns and filters inside the table header", async () => {
@@ -46,6 +56,8 @@ describe("CustomersPage", () => {
             name: "Acme a.s.",
             segment: "oem",
             industry: "oem",
+            salespersonId: "sales-1",
+            salespersonName: "Rastislav Bušík",
             ico: "12345678",
             city: "Nitra",
             district: "Nitra-okolie",
@@ -60,6 +72,8 @@ describe("CustomersPage", () => {
             name: "Beta Systems s.r.o.",
             segment: "vyroba",
             industry: "mobile_equipment",
+            salespersonId: null,
+            salespersonName: null,
             ico: "87654321",
             city: "Topoľčany",
             district: "Topoľčany-okolie",
@@ -78,6 +92,7 @@ describe("CustomersPage", () => {
     renderCustomersPage();
 
     expect(await screen.findByText("Acme a.s.")).toBeInTheDocument();
+    expect(screen.getByText("Obchodník")).toBeInTheDocument();
     expect(screen.getByText("Odvetvie")).toBeInTheDocument();
     expect(screen.getByText("IČO")).toBeInTheDocument();
     expect(screen.getByText("Mesto")).toBeInTheDocument();
@@ -90,6 +105,8 @@ describe("CustomersPage", () => {
     expect(screen.getAllByText("OEM").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Mobile Equipment").length).toBeGreaterThan(0);
     expect(screen.getByText("12345678")).toBeInTheDocument();
+    expect(screen.getByText("Rastislav Bušík")).toBeInTheDocument();
+    expect(screen.getByText("Nepriradené")).toBeInTheDocument();
     expect(screen.getByText("Nitra")).toBeInTheDocument();
     expect(screen.getByText("Nitra-okolie")).toBeInTheDocument();
     expect(screen.getByText("Topoľčany")).toBeInTheDocument();
@@ -122,5 +139,19 @@ describe("CustomersPage", () => {
 
     expect(apiMock).toHaveBeenCalledTimes(1);
     expect(apiMock).toHaveBeenCalledWith("/customers");
+  });
+
+  it("lets a salesperson switch the customer list to all salespeople", async () => {
+    apiMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    renderCustomersPage();
+
+    await waitFor(() => expect(apiMock).toHaveBeenCalledWith("/customers"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Všetci obchodníci" }));
+
+    await waitFor(() => expect(apiMock).toHaveBeenLastCalledWith("/customers?scope=all"));
   });
 });

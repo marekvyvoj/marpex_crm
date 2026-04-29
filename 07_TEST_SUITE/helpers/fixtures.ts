@@ -33,6 +33,7 @@ export async function createTestCustomer(overrides: Partial<{
   name: string;
   segment: "oem" | "vyroba" | "integrator" | "servis" | "other";
   currentRevenue: string;
+  salespersonId: string | null;
 }> = {}) {
   const { db, customers } = await getDbContext();
   const suffix = randomUUID().slice(0, 8);
@@ -42,6 +43,7 @@ export async function createTestCustomer(overrides: Partial<{
       name: overrides.name ?? `Phase5 Customer ${suffix}`,
       segment: overrides.segment ?? "vyroba",
       currentRevenue: overrides.currentRevenue ?? null,
+      salespersonId: overrides.salespersonId ?? null,
       sourceSystem: TEST_SOURCE_SYSTEM,
       sourceRecordId: suffix,
     })

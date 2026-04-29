@@ -6,6 +6,11 @@ import { DashboardPage } from "../../apps/web/src/pages/DashboardPage.tsx";
 import { renderWithProviders } from "./helpers/render.tsx";
 
 const apiMock = vi.fn();
+const useAuthMock = vi.fn();
+
+vi.mock("../../apps/web/src/components/AuthProvider.tsx", () => ({
+  useAuth: () => useAuthMock(),
+}));
 
 vi.mock("../../apps/web/src/lib/api.ts", () => ({
   api: (...args: unknown[]) => apiMock(...args),
@@ -14,10 +19,17 @@ vi.mock("../../apps/web/src/lib/api.ts", () => ({
 describe("DashboardPage", () => {
   beforeEach(() => {
     apiMock.mockReset();
+    useAuthMock.mockReset();
+    useAuthMock.mockReturnValue({
+      user: { id: "sales-1", name: "Obchodník", email: "sales@example.test", role: "sales" },
+      loading: false,
+    });
   });
 
   it("renders planner preview alongside dashboard metrics", async () => {
-    apiMock.mockResolvedValueOnce({
+    apiMock.mockImplementation(async (path: string) => {
+      expect(path).toBe("/dashboard");
+      return {
       customerCount: 8,
       totalPipeline: 220000,
       weightedPipeline: 110000,
@@ -58,6 +70,7 @@ describe("DashboardPage", () => {
       },
       top10: [],
       semaphore: "POZOR",
+      };
     });
 
     renderWithProviders(<DashboardPage />);
@@ -67,6 +80,60 @@ describe("DashboardPage", () => {
     expect(screen.getByRole("link", { name: "Otvoriť plán práce" })).toHaveAttribute("href", "/planner");
     expect(screen.getByText("Rozpracovaná ponuka")).toBeInTheDocument();
     expect(screen.getByText("Poslať cenový update")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Moje portfólio" })).toBeInTheDocument();
+  });
+
+  it("allows a salesperson to switch dashboard scope to all salespeople", async () => {
+    apiMock
+      .mockResolvedValueOnce({
+        customerCount: 2,
+        totalPipeline: 10000,
+        weightedPipeline: 5000,
+        wonTotal: 0,
+        lostTotal: 0,
+        annualRevenueTarget: null,
+        coverageRatio: null,
+        openCount: 1,
+        visitCount: 1,
+        conversionRate: 0,
+        winRate: 0,
+        avgDealSize: 0,
+        crossSellRate: null,
+        stagnantCount: 0,
+        overdueCount: 0,
+        lostReasons: {},
+        plannerPreview: null,
+        top10: [],
+        semaphore: "OK",
+      })
+      .mockResolvedValueOnce({
+        customerCount: 12,
+        totalPipeline: 30000,
+        weightedPipeline: 15000,
+        wonTotal: 0,
+        lostTotal: 0,
+        annualRevenueTarget: null,
+        coverageRatio: null,
+        openCount: 4,
+        visitCount: 3,
+        conversionRate: 0,
+        winRate: 0,
+        avgDealSize: 0,
+        crossSellRate: null,
+        stagnantCount: 0,
+        overdueCount: 0,
+        lostReasons: {},
+        plannerPreview: null,
+        top10: [],
+        semaphore: "OK",
+      });
+
+    renderWithProviders(<DashboardPage />);
+
+    await screen.findByText("Zákazníci");
+    screen.getByRole("button", { name: "Všetci obchodníci" }).click();
+
+    await waitFor(() => expect(apiMock).toHaveBeenLastCalledWith("/dashboard?scope=all"));
   });
 
   it("shows an error state when dashboard loading fails", async () => {

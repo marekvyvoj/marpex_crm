@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "../components/AuthProvider.tsx";
 import { api } from "../lib/api.ts";
 import { customerSegments, customerIndustries, contactRoles } from "@marpex/domain";
 
@@ -21,7 +22,16 @@ interface Customer {
   annualRevenuePlan: string | null;
   annualRevenuePlanYear: number | null;
   shareOfWallet: number | null;
+  salespersonId: string | null;
+  salespersonName: string | null;
   createdAt: string;
+}
+
+interface UserOption {
+  id: string;
+  name: string;
+  role: "manager" | "sales";
+  active: boolean;
 }
 
 interface Contact {
@@ -126,6 +136,7 @@ function getYearProgress(date: Date) {
 }
 
 export function CustomerDetailPage() {
+  const { user } = useAuth();
   const { id } = useParams<{ id: string }>();
   const qc = useQueryClient();
   const [tab, setTab] = useState<Tab>("contacts");
@@ -137,6 +148,14 @@ export function CustomerDetailPage() {
     queryKey: ["customer", id],
     queryFn: () => api(`/customers/${id}`),
   });
+
+  const { data: salesUsers = [] } = useQuery<UserOption[]>({
+    queryKey: ["users", "sales-options"],
+    queryFn: () => api("/users"),
+    enabled: user?.role === "manager",
+  });
+
+  const activeSalesUsers = salesUsers.filter((candidate) => candidate.role === "sales" && candidate.active);
 
   const [editForm, setEditForm] = useState<Partial<Customer>>({});
   const updateCustomer = useMutation({
@@ -250,6 +269,7 @@ export function CustomerDetailPage() {
       currentRevenue: customer!.currentRevenue ?? undefined,
       annualRevenuePlan: customer!.annualRevenuePlan ?? undefined,
       annualRevenuePlanYear: customer!.annualRevenuePlanYear ?? undefined,
+      salespersonId: customer!.salespersonId ?? undefined,
     } as any);
     setEditMode(true);
   }
@@ -278,6 +298,9 @@ export function CustomerDetailPage() {
         body.annualRevenuePlan = Number((editForm as any).annualRevenuePlan) || 0;
         body.annualRevenuePlanYear = currentYear;
       }
+    }
+    if (user?.role === "manager" && (editForm as any).salespersonId !== undefined) {
+      body.salespersonId = (editForm as any).salespersonId || null;
     }
     updateCustomer.mutate(body);
   }
@@ -315,6 +338,16 @@ export function CustomerDetailPage() {
             <option value="">Odvetvie –</option>
             {customerIndustries.map((value) => <option key={value} value={value}>{formatIndustry(value)}</option>)}
           </select>
+          {user?.role === "manager" && (
+            <select
+              className="border border-gray-300 rounded px-3 py-2 text-sm"
+              value={(editForm as any).salespersonId ?? ""}
+              onChange={(e) => setEditForm((f) => ({ ...f, salespersonId: e.target.value || undefined }))}
+            >
+              <option value="">Obchodník – nepriradené</option>
+              {activeSalesUsers.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}
+            </select>
+          )}
           <input
             placeholder="IČO"
             className="border border-gray-300 rounded px-3 py-2 text-sm"
@@ -391,6 +424,7 @@ export function CustomerDetailPage() {
             <div className="flex flex-wrap gap-4 text-sm text-gray-600">
               <span>Odvetvie: <strong>{formatIndustry(customer.industry)}</strong></span>
               <span>Segment: <strong>{customer.segment}</strong></span>
+              <span>Obchodník: <strong>{customer.salespersonName || "Nepriradené"}</strong></span>
               {currentYearPlan && <span>Plán {currentYear}: <strong>{fmt(String(currentYearPlan))}</strong></span>}
               {customer.shareOfWallet != null && <span>SoW: <strong>{customer.shareOfWallet} %</strong></span>}
             </div>

@@ -15,10 +15,13 @@ import {
 import { writeAudit } from "../lib/audit.js";
 import { sendError } from "../lib/http.js";
 import { paginationQuerySchema, resolvePagination, setPaginationHeaders } from "../lib/pagination.js";
+import { listScopeSchema, shouldUseAllScope } from "../lib/view-scope.js";
 
 const stageIds = PIPELINE_STAGES.map((stage) => stage.id) as [StageId, ...StageId[]];
 
-const opportunityListQuerySchema = paginationQuerySchema;
+const opportunityListQuerySchema = paginationQuerySchema.extend({
+  scope: listScopeSchema,
+});
 
 const stageUpdateSchema = z.object({
   stage: z.enum(stageIds),
@@ -35,19 +38,25 @@ type OpportunityListQuery = z.input<typeof opportunityListQuerySchema>;
 export const opportunityRoutes: FastifyPluginAsync = async (app) => {
   // List opportunities
   app.get<{ Querystring: OpportunityListQuery }>("/", async (request, reply) => {
-    const pagination = resolvePagination(opportunityListQuerySchema.parse(request.query));
+    const query = opportunityListQuerySchema.parse(request.query);
+    const pagination = resolvePagination(query);
+    const where = shouldUseAllScope(request.userRole, query.scope)
+      ? undefined
+      : eq(opportunities.ownerId, request.userId!);
 
     if (!pagination) {
-      return db.select().from(opportunities).orderBy(desc(opportunities.updatedAt));
+      return db.select().from(opportunities).where(where).orderBy(desc(opportunities.updatedAt));
     }
 
     const [{ total }] = await db
       .select({ total: sql<number>`count(*)::int` })
-      .from(opportunities);
+      .from(opportunities)
+      .where(where);
 
     const rows = await db
       .select()
       .from(opportunities)
+      .where(where)
       .orderBy(desc(opportunities.updatedAt))
       .limit(pagination.limit)
       .offset(pagination.offset);

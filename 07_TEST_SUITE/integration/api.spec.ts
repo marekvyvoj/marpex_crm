@@ -129,7 +129,7 @@ describe("API integration", () => {
   it("returns dashboard scoped to the logged-in salesperson", async () => {
     const sales = await getUserByEmail("obchodnik1@marpex.sk");
     const manager = await getUserByEmail("manager@marpex.sk");
-    const customer = await createTestCustomer({ name: "Phase5 Sales Dashboard" });
+    const customer = await createTestCustomer({ name: "Phase5 Sales Dashboard", salespersonId: sales.id });
     await createTestOpportunity({
       customerId: customer.id,
       ownerId: sales.id,
@@ -161,6 +161,136 @@ describe("API integration", () => {
     expect(body.openCount).toBe(1);
     expect(body.top10).toHaveLength(1);
     expect(body.top10[0].title).toBe("Sales Owned Opp");
+  });
+
+  it("returns customers scoped to the assigned salesperson by default and expands with scope=all", async () => {
+    const sales = await getUserByEmail("obchodnik1@marpex.sk");
+    const otherSales = await getUserByEmail("obchodnik2@marpex.sk");
+
+    await createTestCustomer({ name: "Phase5 Scoped Customer", salespersonId: sales.id });
+    await createTestCustomer({ name: "Phase5 Hidden Customer", salespersonId: otherSales.id });
+    await createTestCustomer({ name: "Phase5 Unassigned Customer", salespersonId: null });
+
+    const { cookie, response: loginResponse } = await loginAs(app, "obchodnik1@marpex.sk", "sales123", "127.0.0.96");
+    expect(loginResponse.statusCode).toBe(200);
+
+    const scopedResponse = await app.inject({
+      method: "GET",
+      url: "/api/customers",
+      headers: { cookie },
+    });
+
+    expect(scopedResponse.statusCode).toBe(200);
+    const scopedCustomers = scopedResponse.json();
+
+    expect(scopedCustomers.some((customer: { name: string }) => customer.name === "Phase5 Scoped Customer")).toBe(true);
+    expect(scopedCustomers.some((customer: { name: string }) => customer.name === "Phase5 Hidden Customer")).toBe(false);
+    expect(scopedCustomers.some((customer: { name: string }) => customer.name === "Phase5 Unassigned Customer")).toBe(false);
+
+    const allResponse = await app.inject({
+      method: "GET",
+      url: "/api/customers?scope=all",
+      headers: { cookie },
+    });
+
+    expect(allResponse.statusCode).toBe(200);
+    const allCustomers = allResponse.json();
+
+    expect(allCustomers.some((customer: { name: string }) => customer.name === "Phase5 Scoped Customer")).toBe(true);
+    expect(allCustomers.some((customer: { name: string }) => customer.name === "Phase5 Hidden Customer")).toBe(true);
+    expect(allCustomers.some((customer: { name: string }) => customer.name === "Phase5 Unassigned Customer")).toBe(true);
+  });
+
+  it("returns visits and opportunities scoped to the logged-in salesperson by default and expands with scope=all", async () => {
+    const sales = await getUserByEmail("obchodnik1@marpex.sk");
+    const otherSales = await getUserByEmail("obchodnik2@marpex.sk");
+    const customer = await createTestCustomer({ name: "Phase5 Scope Activity", salespersonId: sales.id });
+    const contact = await createTestContact(customer.id);
+
+    await createTestVisit({
+      customerId: customer.id,
+      contactId: contact.id,
+      ownerId: sales.id,
+      date: "2026-04-20",
+      nextStepDeadline: "2026-04-25",
+      visitGoal: "Scoped Visit",
+      nextStep: "Scoped next step",
+      potentialEur: "5000",
+    });
+
+    await createTestVisit({
+      customerId: customer.id,
+      contactId: contact.id,
+      ownerId: otherSales.id,
+      date: "2026-04-21",
+      nextStepDeadline: "2026-04-26",
+      visitGoal: "Hidden Visit",
+      nextStep: "Hidden next step",
+      potentialEur: "6000",
+    });
+
+    await createTestOpportunity({
+      customerId: customer.id,
+      ownerId: sales.id,
+      title: "Scoped Opportunity",
+      stage: "qualified",
+      value: "25000",
+      nextStepSummary: "Scoped follow-up",
+      nextStepDeadline: "2026-04-27",
+    });
+
+    await createTestOpportunity({
+      customerId: customer.id,
+      ownerId: otherSales.id,
+      title: "Hidden Opportunity",
+      stage: "qualified",
+      value: "35000",
+      nextStepSummary: "Hidden follow-up",
+      nextStepDeadline: "2026-04-28",
+    });
+
+    const { cookie, response: loginResponse } = await loginAs(app, "obchodnik1@marpex.sk", "sales123", "127.0.0.97");
+    expect(loginResponse.statusCode).toBe(200);
+
+    const scopedVisits = await app.inject({
+      method: "GET",
+      url: "/api/visits",
+      headers: { cookie },
+    });
+
+    expect(scopedVisits.statusCode).toBe(200);
+    expect(scopedVisits.json().some((visit: { visitGoal: string }) => visit.visitGoal === "Scoped Visit")).toBe(true);
+    expect(scopedVisits.json().some((visit: { visitGoal: string }) => visit.visitGoal === "Hidden Visit")).toBe(false);
+
+    const allVisits = await app.inject({
+      method: "GET",
+      url: "/api/visits?scope=all",
+      headers: { cookie },
+    });
+
+    expect(allVisits.statusCode).toBe(200);
+    expect(allVisits.json().some((visit: { visitGoal: string }) => visit.visitGoal === "Scoped Visit")).toBe(true);
+    expect(allVisits.json().some((visit: { visitGoal: string }) => visit.visitGoal === "Hidden Visit")).toBe(true);
+
+    const scopedOpportunities = await app.inject({
+      method: "GET",
+      url: "/api/opportunities",
+      headers: { cookie },
+    });
+
+    expect(scopedOpportunities.statusCode).toBe(200);
+    expect(scopedOpportunities.json().some((opportunity: { title: string }) => opportunity.title === "Scoped Opportunity")).toBe(true);
+    expect(scopedOpportunities.json().some((opportunity: { title: string }) => opportunity.title === "Hidden Opportunity")).toBe(false);
+
+    const allOpportunities = await app.inject({
+      method: "GET",
+      url: "/api/opportunities?scope=all",
+      headers: { cookie },
+    });
+
+    expect(allOpportunities.statusCode).toBe(200);
+    expect(allOpportunities.json().some((opportunity: { title: string }) => opportunity.title === "Scoped Opportunity")).toBe(true);
+    expect(allOpportunities.json().some((opportunity: { title: string }) => opportunity.title === "Hidden Opportunity")).toBe(true);
   });
 
   it("returns planner items from visits and opportunities scoped to the logged-in salesperson", async () => {

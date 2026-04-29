@@ -111,7 +111,32 @@
 - Patched `apps/api/src/routes/users.ts` so newly created user emails are stored lowercase and do not reintroduce the same mismatch.
 - Added a focused integration test in `07_TEST_SUITE/integration/api.spec.ts` for successful login with uppercase email input.
 - Validation: `cd 06_IMPLEMENTATION && npm run typecheck` passed, and `get_errors` on the touched files reported no errors.
-- DB-backed integration validation is currently blocked in this shell because PostgreSQL is not reachable on `localhost:5432`; live post-deploy login smoke is still pending.
+- DB-backed integration validation is currently blocked in this shell because PostgreSQL is not reachable on `localhost:5432`.
+- Committed the fix as `7b0b771` and pushed it to `origin/main`.
+- Triggered an explicit Railway API redeploy with `railway redeploy -s marpex_crm -y`; deployment `65c797d3-64c9-4be3-a8ac-00fd43abadd9` reached `SUCCESS`.
+- Live smoke verification passed after deploy: direct mixed-case login returned `200`, the production web login form redirected to `/dashboard`, and `GET /api/auth/me` returned the expected salesperson payload in the authenticated session.
+
+### Safari Login Cookie Persistence Fix
+
+- Inspected the live Railway web service and confirmed the current production frontend still used `VITE_API_URL=https://marpexcrm-production.up.railway.app` while its runtime was only `serve`, with no `/api` proxy.
+- Correlated that setup with the user symptom: Safari can accept the `200` login response body but still block the cross-site session cookie, which then causes the next authenticated request to fail.
+- Replaced the web runtime in `apps/web/Dockerfile` with `nginx:alpine`, wired `apps/web/nginx.conf` as a template-backed `/api` reverse proxy to `${RAILWAY_SERVICE_MARPEX_CRM_URL}`, and updated `apps/web/src/lib/api.ts` to prefer same-origin `/api` whenever a configured API base would otherwise be cross-origin.
+- Added a focused regression test in `06_IMPLEMENTATION/tests/web/api.spec.ts` covering the same-origin proxy resolution rule.
+- Validated locally with `cd 06_IMPLEMENTATION && npx vitest run tests/web/api.spec.ts --config vitest.phase5.config.ts` and `cd 06_IMPLEMENTATION && npm -w apps/web run build`; both passed.
+- Updated the Railway web deployment guide to use `VITE_API_URL=/api` and document the Safari-safe same-origin proxy flow.
+- Updated the live Railway web service variable with `railway variable set VITE_API_URL=/api -s web --skip-deploys`, committed the fix as `c1297ac`, pushed it to `origin/main`, and triggered `railway redeploy -s web -y`.
+- Railway web deployment `769e9f6b-3f6a-4946-a542-35c6815dca33` reached `SUCCESS` on the nginx runtime.
+- Live smoke verification passed after deploy: login with `Obchodnik1@marpex.sk / sales123` reached `/dashboard`, same-origin `GET /api/auth/me` returned `200`, and web logs showed successful `/api/auth/me` and `/api/dashboard` traffic from the web origin.
+
+### Salesperson Ownership And Default Mine Scope
+
+- Added customer-level `salespersonId` in the shared domain schema, API DB schema, and forward-safe migration `0009_customer_salesperson_scope.sql`.
+- Scoped `/api/customers`, `/api/dashboard`, `/api/visits`, and `/api/opportunities` to the logged-in salesperson by default, with an explicit `scope=all` opt-out that preserves broader read access when intentionally requested.
+- Updated dashboard, customers, visits, pipeline, and pipeline-stage detail pages so a salesperson sees `mine` by default and can switch to `all`; managers stay on the full portfolio by default.
+- Added customer salesperson display plus manager-side reassignment UI on the customer detail and create flows.
+- Added focused web regression coverage for dashboard, customers, customer detail, visits, and pipeline scope toggles; all targeted web tests passed.
+- Added focused integration coverage for customer and activity scope behavior, but execution is blocked in this shell because PostgreSQL on `localhost:5432` is unavailable (`ECONNREFUSED`).
+- Generated the five requested salesperson credentials into the local ignored file `PRIVATE_SALES_CREDENTIALS_2026-04-29.md` so the data can be shared without committing plaintext passwords to git.
 
 ## Logging Rules
 

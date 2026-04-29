@@ -6,6 +6,7 @@ import { visits, contacts } from "../db/schema.js";
 import { visitSchema } from "@marpex/domain";
 import { sendError } from "../lib/http.js";
 import { paginationQuerySchema, resolvePagination, setPaginationHeaders } from "../lib/pagination.js";
+import { listScopeSchema, shouldUseAllScope } from "../lib/view-scope.js";
 
 const visitListQuerySchema = paginationQuerySchema.extend({
   customerId: z.string().uuid().optional(),
@@ -13,6 +14,7 @@ const visitListQuerySchema = paginationQuerySchema.extend({
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   late: z.enum(["true", "false"]).optional(),
+  scope: listScopeSchema,
 });
 
 type VisitListQuery = z.input<typeof visitListQuerySchema>;
@@ -23,7 +25,13 @@ export const visitRoutes: FastifyPluginAsync = async (app) => {
     const q = visitListQuerySchema.parse(request.query);
     const conditions: SQL[] = [];
     if (q.customerId) { z.string().uuid().parse(q.customerId); conditions.push(eq(visits.customerId, q.customerId)); }
-    if (q.ownerId) { z.string().uuid().parse(q.ownerId); conditions.push(eq(visits.ownerId, q.ownerId)); }
+    const showAll = shouldUseAllScope(request.userRole, q.scope);
+    if (!showAll) {
+      conditions.push(eq(visits.ownerId, request.userId!));
+    } else if (q.ownerId) {
+      z.string().uuid().parse(q.ownerId);
+      conditions.push(eq(visits.ownerId, q.ownerId));
+    }
     if (q.from) conditions.push(gte(visits.date, q.from));
     if (q.to) conditions.push(lte(visits.date, q.to));
     if (q.late === "true") conditions.push(eq(visits.lateFlag, true));

@@ -84,6 +84,7 @@ export const customers = pgTable("customers", {
   annualRevenuePlan: numeric("annual_revenue_plan", { precision: 14, scale: 2 }),
   annualRevenuePlanYear: integer("annual_revenue_plan_year"),
   shareOfWallet: integer("share_of_wallet"),
+  salespersonId: uuid("salesperson_id").references(() => users.id),
   sourceSystem: varchar("source_system", { length: 50 }),
   sourceRecordId: varchar("source_record_id", { length: 255 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

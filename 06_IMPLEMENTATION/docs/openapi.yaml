@@ -98,6 +98,12 @@ paths:
           schema:
             type: string
             enum: [potravinarstvo, oem, mobile_equipment]
+        - in: query
+          name: scope
+          description: Salesperson default is `mine`. Use `all` to explicitly show the full customer portfolio. Managers always see all customers.
+          schema:
+            type: string
+            enum: [mine, all]
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/Limit'
       responses:
@@ -169,6 +175,10 @@ paths:
                 shareOfWallet:
                   type: integer
                   nullable: true
+                salespersonId:
+                  type: string
+                  format: uuid
+                  nullable: true
       responses:
         '201':
           description: Created customer
@@ -207,6 +217,12 @@ paths:
           name: late
           schema:
             type: boolean
+        - in: query
+          name: scope
+          description: Salesperson default is `mine`. Use `all` to explicitly show all visits. Managers always see all visits.
+          schema:
+            type: string
+            enum: [mine, all]
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/Limit'
       responses:
@@ -261,6 +277,12 @@ paths:
       tags: [Opportunities]
       summary: List opportunities
       parameters:
+        - in: query
+          name: scope
+          description: Salesperson default is `mine`. Use `all` to explicitly show all opportunities. Managers always see all opportunities.
+          schema:
+            type: string
+            enum: [mine, all]
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/Limit'
       responses:
@@ -407,6 +429,13 @@ paths:
     get:
       tags: [Dashboard]
       summary: Manager or salesperson dashboard summary
+      parameters:
+        - in: query
+          name: scope
+          description: Salesperson default is `mine`. Use `all` to expand dashboard KPIs and top deals to all salespeople. The planner preview stays personal.
+          schema:
+            type: string
+            enum: [mine, all]
       responses:
         '200':
           description: Dashboard payload
@@ -662,6 +691,13 @@ components:
           nullable: true
         shareOfWallet:
           type: integer
+          nullable: true
+        salespersonId:
+          type: string
+          format: uuid
+          nullable: true
+        salespersonName:
+          type: string
           nullable: true
     Visit:
       type: object

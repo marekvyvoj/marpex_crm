@@ -4,7 +4,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { visitOpportunityTypes, visitSchema, type VisitInput } from "@marpex/domain";
+import { useAuth } from "../components/AuthProvider.tsx";
+import { ScopeToggle } from "../components/ScopeToggle.tsx";
 import { api } from "../lib/api.ts";
+import { withViewScope, type ViewScope } from "../lib/view-scope.ts";
 import { FilterableSelect } from "../components/FilterableSelect.tsx";
 
 interface Visit {
@@ -65,9 +68,11 @@ function getSpeechRecognition() {
 }
 
 export function VisitsPage() {
+  const { user, loading: authLoading } = useAuth();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [showForm, setShowForm] = useState(false);
+  const [scope, setScope] = useState<ViewScope>("mine");
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [dictationError, setDictationError] = useState("");
   const [isDictating, setIsDictating] = useState(false);
@@ -86,15 +91,20 @@ export function VisitsPage() {
   if (filterTo) params.set("to", filterTo);
   if (filterLate) params.set("late", "true");
   const qs = params.toString();
+  const requestedScope: ViewScope = user?.role === "sales" ? scope : "all";
+  const visitsPath = withViewScope(`/visits${qs ? `?${qs}` : ""}`, requestedScope);
+  const customersPath = withViewScope("/customers", requestedScope);
 
   const { data: visits = [], isLoading } = useQuery<Visit[]>({
-    queryKey: ["visits", qs],
-    queryFn: () => api(`/visits${qs ? `?${qs}` : ""}`),
+    queryKey: ["visits", qs, requestedScope],
+    queryFn: () => api(visitsPath),
+    enabled: !authLoading,
   });
 
   const { data: customers = [] } = useQuery<Customer[]>({
-    queryKey: ["customers"],
-    queryFn: () => api("/customers"),
+    queryKey: ["customers", requestedScope],
+    queryFn: () => api(customersPath),
+    enabled: !authLoading,
   });
 
   const customerNameById = new Map(customers.map((customer) => [customer.id, customer.name]));
@@ -191,6 +201,10 @@ export function VisitsPage() {
     recognition.start();
   }
 
+  if (authLoading) {
+    return <p className="text-gray-400 text-sm">Načítavam…</p>;
+  }
+
   return (
     <div>
       <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -200,12 +214,15 @@ export function VisitsPage() {
             Každú návštevu môžete otvoriť do detailu. Na mobile je k dispozícii aj diktovanie poznámky.
           </p>
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="bg-blue-600 text-white text-sm px-4 py-2 rounded hover:bg-blue-700"
-        >
-          {showForm ? "Zavrieť" : "+ Nová návšteva"}
-        </button>
+        <div className="flex flex-col gap-2 sm:items-end">
+          {user?.role === "sales" && <ScopeToggle scope={scope} onChange={setScope} mineLabel="Moje návštevy" allLabel="Všetky návštevy" />}
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="bg-blue-600 text-white text-sm px-4 py-2 rounded hover:bg-blue-700"
+          >
+            {showForm ? "Zavrieť" : "+ Nová návšteva"}
+          </button>
+        </div>
       </div>
 
       {/* Filter bar */}

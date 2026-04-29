@@ -2,7 +2,10 @@ import { useState, type DragEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PIPELINE_STAGES, GATED_STAGES, type StageId } from "@marpex/domain";
+import { useAuth } from "../components/AuthProvider.tsx";
+import { ScopeToggle } from "../components/ScopeToggle.tsx";
 import { api } from "../lib/api.ts";
+import { withViewScope, type ViewScope } from "../lib/view-scope.ts";
 import { FilterableSelect } from "../components/FilterableSelect.tsx";
 
 interface Opportunity {
@@ -23,22 +26,29 @@ function fmtMoney(value: number) {
 }
 
 export function PipelinePage() {
+  const { user, loading: authLoading } = useAuth();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [showForm, setShowForm] = useState(false);
+  const [scope, setScope] = useState<ViewScope>("mine");
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverStage, setDragOverStage] = useState<StageId | null>(null);
   const [dndError, setDndError] = useState<string | null>(null);
   const [suppressClickUntil, setSuppressClickUntil] = useState(0);
+  const requestedScope: ViewScope = user?.role === "sales" ? scope : "all";
+  const opportunitiesPath = withViewScope("/opportunities", requestedScope);
+  const customersPath = withViewScope("/customers", requestedScope);
 
   const { data: opportunities = [] } = useQuery<Opportunity[]>({
-    queryKey: ["opportunities"],
-    queryFn: () => api("/opportunities"),
+    queryKey: ["opportunities", requestedScope],
+    queryFn: () => api(opportunitiesPath),
+    enabled: !authLoading,
   });
 
   const { data: customers = [] } = useQuery<Customer[]>({
-    queryKey: ["customers"],
-    queryFn: () => api("/customers"),
+    queryKey: ["customers", requestedScope],
+    queryFn: () => api(customersPath),
+    enabled: !authLoading,
   });
 
   const customerOptions = customers.map((customer) => ({ value: customer.id, label: customer.name }));
@@ -128,6 +138,10 @@ export function PipelinePage() {
   const maxCount = Math.max(...stageStats.map((item) => item.count), 1);
   const maxTotal = Math.max(...stageStats.map((item) => item.total), 1);
 
+  if (authLoading) {
+    return <p className="text-gray-400 text-sm">Načítavam…</p>;
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -137,12 +151,15 @@ export function PipelinePage() {
             Weighted pipeline: <span className="font-semibold text-gray-800">{fmtMoney(totalWeighted)}</span>
           </p>
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="bg-blue-600 text-white text-sm px-4 py-2 rounded hover:bg-blue-700"
-        >
-          {showForm ? "Zavrieť" : "+ Nová príležitosť"}
-        </button>
+        <div className="flex flex-col gap-2 sm:items-end">
+          {user?.role === "sales" && <ScopeToggle scope={scope} onChange={setScope} mineLabel="Moje príležitosti" allLabel="Všetky príležitosti" />}
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="bg-blue-600 text-white text-sm px-4 py-2 rounded hover:bg-blue-700"
+          >
+            {showForm ? "Zavrieť" : "+ Nová príležitosť"}
+          </button>
+        </div>
       </div>
 
       {showForm && (
@@ -187,7 +204,7 @@ export function PipelinePage() {
               <button
                 key={stage.id}
                 type="button"
-                onClick={() => navigate(`/pipeline/stage/${stage.id}`)}
+                onClick={() => navigate(`/pipeline/stage/${stage.id}${requestedScope === "all" ? "?scope=all" : ""}`)}
                 className="w-full text-left"
               >
                 <div className="mb-1 flex items-center justify-between gap-3 text-sm">
@@ -264,7 +281,7 @@ export function PipelinePage() {
                 <button
                   type="button"
                   data-testid={`pipeline-stage-link-${stage.id}`}
-                  onClick={() => navigate(`/pipeline/stage/${stage.id}`)}
+                  onClick={() => navigate(`/pipeline/stage/${stage.id}${requestedScope === "all" ? "?scope=all" : ""}`)}
                   className="text-left"
                 >
                   <h3 className="font-medium text-sm text-blue-700 hover:underline">{stage.label}</h3>

@@ -1,9 +1,9 @@
 # Session State
 
 Last updated: 2026-04-29
-Current task: Railway production login failure for the salesperson account with mixed-case email input; fix, validate, and complete commit or push or deploy follow-through
-Current phase: Auth normalization patch implemented and locally typechecked; DB-backed integration validation is environment-blocked, pending commit or push or deploy and live smoke verification
-Approval status: User explicitly requested Railway log inspection plus commit, push, and deploy for the live production incident.
+Current task: Add named salesperson accounts, assign customers to salespeople, and default customer/dashboard views to the logged-in salesperson while still allowing broader access on demand
+Current phase: Implementation complete and locally validated with focused web tests plus full monorepo typecheck; live account creation, commit, push, migration, and deploy remain pending
+Approval status: User explicitly requested account creation, commit, push, and deploy. Local implementation is complete; live production mutation is pending the release step.
 
 ## Repository Discovery
 
@@ -118,6 +118,18 @@ Approval status: User explicitly requested Railway log inspection plus commit, p
 - `cd 07_TEST_SUITE && npx vitest run integration/api.spec.ts --config vitest.config.ts -t "accepts login email regardless of case"`: reached the new slice but was blocked by local PostgreSQL unavailability (`ECONNREFUSED` on `127.0.0.1:5432` and `::1:5432`).
 - `cd 06_IMPLEMENTATION && npm run typecheck`: passed after the auth normalization patch.
 - `get_errors` on `apps/api/src/routes/auth.ts`, `apps/api/src/routes/users.ts`, and `07_TEST_SUITE/integration/api.spec.ts`: no errors.
+- `git commit -m "Fix case-insensitive login emails"`: passed as commit `7b0b771`.
+- `git push origin main`: passed for `7b0b771`.
+- `cd 06_IMPLEMENTATION && railway redeploy -s marpex_crm -y`: accepted and produced Railway deployment `65c797d3-64c9-4be3-a8ac-00fd43abadd9`, later marked `SUCCESS`.
+- Live post-deploy probes passed: mixed-case `Obchodnik1@marpex.sk / sales123` now returns `200` on `POST /api/auth/login`, browser login on `https://web-production-c47f4.up.railway.app/login` redirects to `/dashboard`, and authenticated `GET /api/auth/me` returns `200` in the same session.
+- `cd 06_IMPLEMENTATION && railway variable list -s web`: confirmed the web service had `VITE_API_URL=https://marpexcrm-production.up.railway.app`, while the live runtime was still the plain `serve` static server with no same-origin `/api` proxy.
+- `cd 06_IMPLEMENTATION && railway variable set VITE_API_URL=/api -s web --skip-deploys`: passed, preparing the Safari-safe same-origin API base without triggering an intermediate deploy.
+- `cd 06_IMPLEMENTATION && npx vitest run tests/web/api.spec.ts --config vitest.phase5.config.ts`: passed after adding the focused same-origin proxy resolution test.
+- `cd 06_IMPLEMENTATION && npm -w apps/web run build`: passed after switching the web runtime to nginx and same-origin proxying.
+- `git commit -m "Fix Safari login via same-origin web proxy"`: passed as commit `c1297ac`.
+- `git push origin main`: passed for `c1297ac`.
+- `cd 06_IMPLEMENTATION && railway redeploy -s web -y`: accepted and produced Railway deployment `769e9f6b-3f6a-4946-a542-35c6815dca33`, later marked `SUCCESS`.
+- Live post-deploy Safari-like probes passed: browser login on `https://web-production-c47f4.up.railway.app/login` with `Obchodnik1@marpex.sk / sales123` redirected to `/dashboard`, same-origin `GET /api/auth/me` returned `200`, and web logs showed `/api/auth/me` plus `/api/dashboard` served successfully by the web service.
 
 ## Review Results
 
@@ -137,6 +149,8 @@ Approval status: User explicitly requested Railway log inspection plus commit, p
 - Same-session security pass for the current release step confirmed the only local mutation beyond code edits was a disposable Docker-backed PostgreSQL migration validation. Auth, env, cookies, deployment wrappers, and production data were not changed locally.
 - Same-session reduced-assurance reviewer pass for the current auth incident found the smallest safe fix is email canonicalization at login and user creation plus a case-insensitive login lookup; no additional route or session-contract changes were needed.
 - Same-session security pass for the current auth incident confirmed the patch does not alter `trustProxy`, CORS, session cookie flags, or Railway runtime configuration; it only changes email matching semantics for auth.
+- Same-session reduced-assurance reviewer pass for the Safari incident found the controlling issue is not credential validation but cross-site session persistence: the Railway web service was calling the API on a different origin via `VITE_API_URL`, and the web runtime had no same-origin `/api` proxy.
+- Same-session security pass for the Safari incident confirmed the fix stays on the web delivery side only: nginx proxying plus same-origin frontend routing. API auth, cookie flags, CORS, and DB data are unchanged.
 
 ## Active Blockers And Manual Confirmation
 
@@ -149,6 +163,14 @@ Approval status: User explicitly requested Railway log inspection plus commit, p
 - `07_TEST_SUITE` TypeScript validation is environment-blocked until its dependencies or type packages are installed in this shell.
 
 ## Current Execution Notes
+
+- New discovery for the current task confirmed the direct control gap: `apps/api/src/routes/dashboard.ts` already scopes visits and opportunities by `ownerId`, but `customers` has no salesperson field and `apps/api/src/routes/customers.ts` currently returns all customers for every authenticated user.
+- The smallest coherent fix is to add a nullable customer-level salesperson reference, expose it through the shared customer schema, scope customer-facing API routes by the session user by default, and add an explicit opt-out for broader visibility.
+- Account provisioning should avoid rerunning the full seed against live data. A targeted user-sync path is safer than a full reseed once the new users and credentials are defined.
+- Implemented migration `0009_customer_salesperson_scope.sql`, customer-level salesperson assignment in API plus web, and shared `scope=mine|all` handling across customers, dashboard, visits, opportunities, pipeline, and the pipeline stage detail page.
+- Added a local ignored credentials file `PRIVATE_SALES_CREDENTIALS_2026-04-29.md` for the five requested salespeople and protected it with `.git/info/exclude` so it stays out of git history.
+- Focused web validation passed for dashboard or customers or customer detail and for visits or pipeline pages; full `cd 06_IMPLEMENTATION && npm run typecheck` also passed.
+- Focused integration coverage was added for customer or visit or opportunity scope behavior, but DB-backed execution remains blocked because PostgreSQL is not reachable on `localhost:5432` in this shell.
 
 - New task discovery confirmed the direct controlling slice for the requested UI change is `06_IMPLEMENTATION/apps/web/src/pages/CustomersPage.tsx`; the current search plus filter bar lives entirely in that page and there is no shared sortable table abstraction to preserve.
 - The customers list API already returns `district`, so adding the `Okres` column only needs a list-page type and render update unless validation reveals a contract mismatch.
@@ -181,9 +203,11 @@ Approval status: User explicitly requested Railway log inspection plus commit, p
 - Synced `06_IMPLEMENTATION/docs/openapi.yaml`, `06_IMPLEMENTATION/docs/LAUNCH_CHECKLIST.md`, and the Railway deployment guides so the documented customer contract and `VITE_API_URL` guidance match the new code.
 - Added `06_IMPLEMENTATION/SourceData` as a duplicate of the workbook set so Railway's workspace-based build includes the Excel files needed for production seeding.
 - Extended the nearest integration coverage in `07_TEST_SUITE/integration/api.spec.ts` for `industry`, SourceData fields, and profit updates, and the targeted scenario passed after local DB setup.
-- Live incident discovery showed the current production login route still compared emails case-sensitively: Railway logs around `08:35Z` show repeated `401` requests from a single client IP followed by `429`, and a direct probe reproduced `200` for lowercase `obchodnik1@marpex.sk` versus `401` for mixed-case `Obchodnik1@marpex.sk` with the same password.
+- Live incident discovery showed the production login route had compared emails case-sensitively before the fix: Railway logs around `08:35Z` show repeated `401` requests from a single client IP followed by `429`, and a direct probe reproduced `200` for lowercase `obchodnik1@marpex.sk` versus `401` for mixed-case `Obchodnik1@marpex.sk` with the same password.
 - Patched `apps/api/src/routes/auth.ts` to trim or lowercase login input and compare against `lower(users.email)`, patched `apps/api/src/routes/users.ts` to persist newly created user emails in lowercase, and added a focused integration test for uppercase login input in `07_TEST_SUITE/integration/api.spec.ts`.
-- Local DB-backed verification for the new auth test is currently blocked because no PostgreSQL server is reachable on `localhost:5432`; typecheck and workspace diagnostics passed, and live post-deploy smoke is still pending.
+- Local DB-backed verification for the new auth test is currently blocked because no PostgreSQL server is reachable on `localhost:5432`; typecheck and workspace diagnostics passed, and live post-deploy smoke is now complete.
+- New live discovery for the Safari-specific failure: the user-facing symptom matches a successful `POST /api/auth/login` followed by unauthorized follow-up requests when the browser does not persist the cross-site session cookie. The Railway web service confirmed `VITE_API_URL` pointed directly at the API domain, and the runtime was only `serve`, so Safari had no first-party route for auth.
+- Implemented the Safari fix in the web delivery layer: `apps/web/Dockerfile` now runs `nginx`, `apps/web/nginx.conf` proxies `/api` to `${RAILWAY_SERVICE_MARPEX_CRM_URL}`, `apps/web/src/lib/api.ts` prefers the same-origin `/api` proxy whenever the configured API base would be cross-origin, and `tests/web/api.spec.ts` covers that resolution rule. Railway web env `VITE_API_URL` is now `/api`.
 
 ## Handoff Summary
 

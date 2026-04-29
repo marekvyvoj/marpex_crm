@@ -1,6 +1,10 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
+import { useAuth } from "../components/AuthProvider.tsx";
+import { ScopeToggle } from "../components/ScopeToggle.tsx";
 import { api } from "../lib/api.ts";
+import { withViewScope, type ViewScope } from "../lib/view-scope.ts";
 
 interface DashboardData {
   customerCount: number;
@@ -52,11 +56,17 @@ const semaphoreColors = {
 };
 
 export function DashboardPage() {
+  const { user, loading: authLoading } = useAuth();
+  const [scope, setScope] = useState<ViewScope>("mine");
+  const requestedScope: ViewScope = user?.role === "sales" ? scope : "all";
+
   const { data, error, isError, isLoading } = useQuery<DashboardData>({
-    queryKey: ["dashboard"],
-    queryFn: () => api("/dashboard"),
+    queryKey: ["dashboard", requestedScope],
+    queryFn: () => api(withViewScope("/dashboard", requestedScope)),
+    enabled: !authLoading,
   });
 
+  if (authLoading) return <p className="text-gray-400 text-sm">Načítavam dashboard…</p>;
   if (isLoading) return <p className="text-gray-400 text-sm">Načítavam dashboard…</p>;
   if (isError) return <p className="text-red-600 text-sm">{error instanceof Error ? error.message : "Dashboard sa nepodarilo načítať."}</p>;
   if (!data) return <p className="text-gray-400 text-sm">Dashboard nemá dostupné dáta.</p>;
@@ -69,6 +79,16 @@ export function DashboardPage() {
           {data.semaphore}
         </span>
       </div>
+
+      {user?.role === "sales" && (
+        <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-medium text-slate-900">Predvolený pohľad je len na vaše firmy a vaše čísla.</p>
+            <p className="text-xs text-slate-500">Ak potrebujete, môžete si dočasne zobraziť aj portfólio ostatných obchodníkov.</p>
+          </div>
+          <ScopeToggle scope={scope} onChange={setScope} mineLabel="Moje portfólio" allLabel="Všetci obchodníci" />
+        </div>
+      )}
 
       {/* KPI Grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">

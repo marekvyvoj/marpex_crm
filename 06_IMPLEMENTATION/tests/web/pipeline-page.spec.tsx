@@ -9,6 +9,11 @@ import { renderWithProviders } from "./helpers/render.tsx";
 
 const apiMock = vi.fn();
 const navigateMock = vi.fn();
+const useAuthMock = vi.fn();
+
+vi.mock("../../apps/web/src/components/AuthProvider.tsx", () => ({
+  useAuth: () => useAuthMock(),
+}));
 
 vi.mock("../../apps/web/src/lib/api.ts", () => ({
   api: (...args: unknown[]) => apiMock(...args),
@@ -54,12 +59,25 @@ describe("PipelinePage", () => {
     navigateMock.mockReset();
     opportunities = [];
     apiMock.mockReset();
+    useAuthMock.mockReset();
+    useAuthMock.mockReturnValue({
+      user: { id: "sales-1", name: "Obchodník", email: "sales@example.test", role: "sales" },
+      loading: false,
+    });
     apiMock.mockImplementation((path: string, options?: { method?: string; body?: string }) => {
       if (path === "/customers") {
         return Promise.resolve(customers);
       }
 
+      if (path === "/customers?scope=all") {
+        return Promise.resolve(customers);
+      }
+
       if (path === "/opportunities" && !options) {
+        return Promise.resolve([...opportunities]);
+      }
+
+      if (path === "/opportunities?scope=all" && !options) {
         return Promise.resolve([...opportunities]);
       }
 
@@ -166,11 +184,29 @@ describe("PipelinePage", () => {
     expect(screen.getByText("Počet príležitostí podľa fázy")).toBeInTheDocument();
     expect(screen.getByText("Hodnota podľa fázy")).toBeInTheDocument();
   });
+
+  it("lets a salesperson switch the pipeline to all salespeople", async () => {
+    renderWithProviders(<PipelinePage />);
+
+    await waitFor(() => expect(apiMock).toHaveBeenCalledWith("/opportunities"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Všetky príležitosti" }));
+
+    await waitFor(() => {
+      expect(apiMock).toHaveBeenCalledWith("/opportunities?scope=all");
+      expect(apiMock).toHaveBeenCalledWith("/customers?scope=all");
+    });
+  });
 });
 
 describe("PipelineStageDetailPage", () => {
   beforeEach(() => {
     apiMock.mockReset();
+    useAuthMock.mockReset();
+    useAuthMock.mockReturnValue({
+      user: { id: "sales-1", name: "Obchodník", email: "sales@example.test", role: "sales" },
+      loading: false,
+    });
     apiMock.mockImplementation((path: string) => {
       if (path === "/customers") {
         return Promise.resolve(customers);

@@ -1,7 +1,10 @@
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { PIPELINE_STAGES, type StageId } from "@marpex/domain";
+import { useAuth } from "../components/AuthProvider.tsx";
+import { ScopeToggle } from "../components/ScopeToggle.tsx";
 import { api } from "../lib/api.ts";
+import { withViewScope, type ViewScope } from "../lib/view-scope.ts";
 
 interface Opportunity {
   id: string;
@@ -25,21 +28,43 @@ function fmtMoney(value: number) {
 }
 
 export function PipelineStageDetailPage() {
+  const { user, loading: authLoading } = useAuth();
   const { stageId } = useParams<{ stageId: StageId }>();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const currentScope: ViewScope = searchParams.get("scope") === "all" ? "all" : "mine";
+  const requestedScope: ViewScope = user?.role === "sales" ? currentScope : "all";
   const stage = PIPELINE_STAGES.find((item) => item.id === stageId);
 
   const { data: opportunities = [], isLoading } = useQuery<Opportunity[]>({
-    queryKey: ["opportunities"],
-    queryFn: () => api("/opportunities"),
+    queryKey: ["opportunities", requestedScope],
+    queryFn: () => api(withViewScope("/opportunities", requestedScope)),
+    enabled: !authLoading,
   });
 
   const { data: customers = [] } = useQuery<Customer[]>({
-    queryKey: ["customers"],
-    queryFn: () => api("/customers"),
+    queryKey: ["customers", requestedScope],
+    queryFn: () => api(withViewScope("/customers", requestedScope)),
+    enabled: !authLoading,
   });
+
+  function updateScope(scope: ViewScope) {
+    const nextParams = new URLSearchParams(searchParams);
+
+    if (scope === "all") {
+      nextParams.set("scope", "all");
+    } else {
+      nextParams.delete("scope");
+    }
+
+    setSearchParams(nextParams, { replace: true });
+  }
 
   if (!stage) {
     return <p className="text-sm text-red-600">Neznáma fáza pipeline.</p>;
+  }
+
+  if (authLoading) {
+    return <p className="text-sm text-gray-400">Načítavam fázu pipeline…</p>;
   }
 
   if (isLoading) {
@@ -54,7 +79,7 @@ export function PipelineStageDetailPage() {
   return (
     <div className="space-y-5">
       <div className="text-sm text-gray-500">
-        <Link to="/pipeline" className="hover:underline">Pipeline</Link>
+        <Link to={requestedScope === "all" ? "/pipeline?scope=all" : "/pipeline"} className="hover:underline">Pipeline</Link>
         <span className="mx-2">/</span>
         <span className="font-medium text-gray-800">{stage.label}</span>
       </div>
@@ -67,6 +92,11 @@ export function PipelineStageDetailPage() {
             <p className="mt-2 max-w-2xl text-sm text-gray-500">
               Detailný pohľad na všetky príležitosti v tejto fáze vrátane zákazníka, hodnoty, ďalšieho kroku a stagnácie.
             </p>
+            {user?.role === "sales" && (
+              <div className="mt-4">
+                <ScopeToggle scope={currentScope} onChange={updateScope} mineLabel="Moje príležitosti" allLabel="Všetky príležitosti" />
+              </div>
+            )}
           </div>
           <div className="grid grid-cols-3 gap-3 md:min-w-[22rem]">
             <StageMetric label="Počet" value={String(stageOpportunities.length)} />

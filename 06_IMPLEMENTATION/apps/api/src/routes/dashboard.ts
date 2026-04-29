@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from "fastify";
+import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { customers, opportunities, visits } from "../db/schema.js";
@@ -6,6 +7,11 @@ import { PIPELINE_STAGES } from "@marpex/domain";
 import { getOptionalNumberEnv } from "../lib/env.js";
 import { sendError } from "../lib/http.js";
 import { syncStagnantOpportunities } from "../lib/stagnation.js";
+import { listScopeSchema, shouldUseAllScope, type ListScope } from "../lib/view-scope.js";
+
+const dashboardQuerySchema = z.object({
+  scope: listScopeSchema,
+});
 
 type CustomerRow = {
   id: string;
@@ -32,18 +38,25 @@ type PlannerItem = {
   value: number | null;
 };
 
-async function loadScopedDashboardRows(userRole: string, userId: string) {
-  const oppRows = userRole === "manager"
+async function loadScopedDashboardRows(userRole: string, userId: string, scope?: ListScope) {
+  const showAll = shouldUseAllScope(userRole, scope);
+
+  const oppRows = showAll
     ? await db.select().from(opportunities)
     : await db.select().from(opportunities).where(eq(opportunities.ownerId, userId));
 
-  const visitRows = userRole === "manager"
+  const visitRows = showAll
     ? await db.select().from(visits)
     : await db.select().from(visits).where(eq(visits.ownerId, userId));
 
-  const customerRows = await db
-    .select({ id: customers.id, name: customers.name, currentRevenue: customers.currentRevenue })
-    .from(customers);
+  const customerRows = showAll
+    ? await db
+        .select({ id: customers.id, name: customers.name, currentRevenue: customers.currentRevenue })
+        .from(customers)
+    : await db
+        .select({ id: customers.id, name: customers.name, currentRevenue: customers.currentRevenue })
+        .from(customers)
+        .where(eq(customers.salespersonId, userId));
 
   return {
     oppRows,
@@ -189,17 +202,25 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
   });
 
   app.get("/", async (request) => {
+    const { scope } = dashboardQuerySchema.parse(request.query);
     const userRole = request.userRole!;
     const userId = request.userId!;
 
     await syncStagnantOpportunities();
 
-    const { oppRows, visitRows, customerRows } = await loadScopedDashboardRows(userRole, userId);
+    const { oppRows, visitRows, customerRows } = await loadScopedDashboardRows(userRole, userId, scope);
     const today = new Date();
     const todayKey = toDateKey(today);
-    const plannerPreview = userRole === "sales"
-      ? buildPlannerPayload(oppRows, visitRows, customerRows, todayKey, toDateKey(addDays(today, 7)))
-      : null;
+    let plannerPreview = null;
+
+    if (userRole === "sales") {
+      if (scope === "all") {
+        const ownRows = await loadScopedDashboardRows(userRole, userId, "mine");
+        plannerPreview = buildPlannerPayload(ownRows.oppRows, ownRows.visitRows, ownRows.customerRows, todayKey, toDateKey(addDays(today, 7)));
+      } else {
+        plannerPreview = buildPlannerPayload(oppRows, visitRows, customerRows, todayKey, toDateKey(addDays(today, 7)));
+      }
+    }
 
     const open = oppRows.filter((o) => o.stage !== "won" && o.stage !== "lost");
     const won = oppRows.filter((o) => o.stage === "won");

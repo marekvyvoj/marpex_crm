@@ -76,21 +76,25 @@ Očakávaný výsledok:
 
 - Dashboard sa načíta bez chyby.
 - Manažér vidí aj manažérske sekcie `Report` a `Používatelia`.
+- Manažér vidí dashboard za celé portfólio bez potreby prepínania scope.
 
 ### Scenár B: Plán práce obchodníka
 
 Kroky:
 
 1. Prihlás sa ako obchodník cez `obchodnik1@marpex.sk` / `sales123`.
-2. V navigácii otvor `Plán práce`.
-3. Skontroluj sumárne boxy `Po termíne`, `Dnes`, `Do 7 dní`, `Neskôr` a `Všetky next stepy`.
-4. Over, že v sekciách vidíš next stepy z návštev aj z príležitostí.
-5. Klikni na jednu položku z návštevy a na jednu položku z príležitosti.
-6. Over, že sa otvorí správny detail (`Návšteva` alebo detail príležitosti v `Pipeline`).
+2. Na `Dashboarde` si všimni, že predvolený pohľad je len na tvoje portfólio.
+3. Preklikni prepínač `Moje portfólio` / `Všetci obchodníci` a over, že sa dashboard prepne bez reload erroru.
+4. V navigácii otvor `Plán práce`.
+5. Skontroluj sumárne boxy `Po termíne`, `Dnes`, `Do 7 dní`, `Neskôr` a `Všetky next stepy`.
+6. Over, že v sekciách vidíš next stepy z návštev aj z príležitostí.
+7. Klikni na jednu položku z návštevy a na jednu položku z príležitosti.
+8. Over, že sa otvorí správny detail (`Návšteva` alebo detail príležitosti v `Pipeline`).
 
 Očakávaný výsledok:
 
 - obchodník vidí svoje nadchádzajúce a oneskorené next stepy na jednom mieste
+- dashboard je pre obchodníka defaultne obmedzený na jeho priradené portfólio
 - položky sú rozdelené podľa urgency
 - klik z plánovača vedie na správny detail zdrojového záznamu
 
@@ -99,24 +103,26 @@ Očakávaný výsledok:
 Kroky:
 
 1. V navigácii klikni na `Zákazníci`.
-2. Použi vyhľadávanie podľa názvu firmy.
-3. Otvor detail zákazníka kliknutím na názov firmy.
+2. Ako obchodník over prepínač `Moje firmy` / `Všetci obchodníci`.
+3. Použi filtrovanie podľa názvu firmy alebo podľa stĺpca `Obchodník`.
+4. Otvor detail zákazníka kliknutím na názov firmy.
 4. Na detaile si skontroluj:
-   - segment
-   - kategóriu
-   - revenue
-   - potenciál
+   - segment a odvetvie
+   - obchodníka
+   - ročný plán a tržby
    - počet kontaktov, návštev a príležitostí
 5. Klikni na `Upraviť`.
-6. Zmeň názov firmy alebo potenciál a ulož zmenu.
-7. Klikni na `+ Nový kontakt`.
-8. Vyplň meno, priezvisko, pozíciu, email a telefón.
-9. Ulož kontakt.
-10. Preklikni tabs `Kontakty`, `Návštevy`, `Príležitosti`.
+6. Zmeň názov firmy alebo ročný plán a ulož zmenu.
+7. Ako manažér over, že vieš na firme zmeniť aj pole `Obchodník`.
+8. Klikni na `+ Nový kontakt`.
+9. Vyplň meno, priezvisko, pozíciu, email a telefón.
+10. Ulož kontakt.
+11. Preklikni tabs `Kontakty`, `Návštevy`, `Príležitosti`.
 
 Očakávaný výsledok:
 
 - uložené zmeny sa hneď zobrazia v hlavičke firmy
+- obchodník je na firme viditeľný a manažér ho vie zmeniť
 - nový kontakt sa objaví v tabuľke kontaktov
 - návštevy a príležitosti sú zobrazené v samostatných tabs
 
@@ -128,9 +134,9 @@ Kroky:
 2. Do textového poľa vlož CSV v tomto formáte:
 
 ```csv
-name,segment,category,currentRevenue,potential,contactFirstName,contactLastName,contactRole,contactEmail,contactPhone
-Phase5 Demo Alpha,oem,A,120000,350000,Ján,Novák,decision_maker,jan.novak@example.test,0900123456
-Phase5 Demo Beta,vyroba,B,80000,200000,Petra,Kováčová,influencer,petra.kovacova@example.test,
+name,segment,currentRevenue,contactFirstName,contactLastName,contactRole,contactEmail,contactPhone
+Phase5 Demo Alpha,oem,120000,Ján,Novák,decision_maker,jan.novak@example.test,0900123456
+Phase5 Demo Beta,vyroba,80000,Petra,Kováčová,influencer,petra.kovacova@example.test,
 ```
 
 3. Skontroluj náhľad tabuľky pod textovým poľom.
@@ -181,15 +187,18 @@ Očakávaný výsledok:
 Kroky:
 
 1. Otvor `Pipeline`.
-2. Nájdeš príležitosť v niektorej fáze.
-3. Potiahni ju myšou do ďalšej dovolenej fázy.
-4. Vráť sa na Dashboard.
-5. Skontroluj top dealy a zvýraznenie stagnujúcich príležitostí.
+2. Ako obchodník over prepínač `Moje príležitosti` / `Všetky príležitosti`.
+3. Nájdeš príležitosť v niektorej fáze.
+4. Potiahni ju myšou do ďalšej dovolenej fázy.
+5. Klikni na detail fázy a over, že si zachová rovnaký scope ako board.
+6. Vráť sa na Dashboard.
+7. Skontroluj top dealy a zvýraznenie stagnujúcich príležitostí.
 
 Očakávaný výsledok:
 
 - karta sa po dropnutí presunie do nového stĺpca
 - backend zmenu uloží a po refreshi zostane zachovaná
+- obchodník vidí defaultne len svoje príležitosti, ale vie si vedome zapnúť all scope
 - stagnujúce príležitosti sú viditeľne odlíšené
 
 ## 4. Ako spustiť automatizované E2E testy
