@@ -9,6 +9,7 @@ Overené 2026-04-26 cez Railway CLI:
 - build beží na `node:22-alpine`
 - build context musí obsahovať celý repo root, aby boli dostupné cesty `06_IMPLEMENTATION/...`
 - current live flow nepoužíva `web.Procfile`
+- runtime teraz servuje statické `dist/` cez `nginx:alpine` a proxuje `/api` na API service, aby session cookies ostali first-party aj v Safari
 
 **Čas na setup: ~10 minút**
 
@@ -62,7 +63,7 @@ Build prebieha cez Dockerfile:
 - base image: `node:22-alpine`
 - install: `npm ci`
 - build: `npm -w packages/domain run build && npm -w apps/web run build`
-- runtime: `serve -s dist -l tcp://0.0.0.0:${PORT:-3000}`
+- runtime: `nginx:alpine` servuje `dist/` a proxuje `/api` na Railway API service
 
 ---
 
@@ -71,17 +72,18 @@ Build prebieha cez Dockerfile:
 V web service klikni na **"Variables"** a pridaj:
 
 ```
-VITE_API_URL=https://marpex-api.railway.app
+VITE_API_URL=/api
 ```
 
-Kde `marpex-api.railway.app` je tvoj **API service URL**. Môžeš si ho nájsť v API service → Settings → Domains alebo Development domain.
-Odporúčaná hodnota je base URL bez suffixu `/api`.
+Pre current Railway setup je preferovaná same-origin proxy cesta `/api`, nie absolútna API doména. Tým pádom browser komunikuje s web service first-party a `nginx` request interne forwardne na API service.
 
 **OPCIA:** Ak máš vlastnú doménu (napr. `marpex.sk`):
 
 ```
-VITE_API_URL=https://api.marpex.sk
+VITE_API_URL=/api
 ```
+
+Ak potrebuješ API URL explicitne zobraziť alebo debugovať, Railway ju stále sprístupňuje do web service ako internú env premennú `RAILWAY_SERVICE_MARPEX_CRM_URL`, ktorú runtime proxy použije automaticky.
 
 ---
 
@@ -108,10 +110,10 @@ V `06_IMPLEMENTATION/apps/web/src/` (alebo kde sú API calls):
 **Príklad (React fetch):**
 
 ```typescript
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3005";
+const API_URL = import.meta.env.VITE_API_URL || "/api";
 
 async function fetchCustomers() {
-  const response = await fetch(`${API_URL}/api/customers`, {
+  const response = await fetch(`${API_URL}/customers`, {
     credentials: "include", // Cookies pre auth session
   });
   return response.json();
@@ -129,7 +131,8 @@ function resolveApiBase(rawBase = import.meta.env.VITE_API_URL || "/api") {
     return "/api";
   }
 
-  return normalizedBase.endsWith("/api") ? normalizedBase : `${normalizedBase}/api`;
+  const apiBase = normalizedBase.endsWith("/api") ? normalizedBase : `${normalizedBase}/api`;
+  return new URL(apiBase, window.location.origin).origin !== window.location.origin ? "/api" : apiBase;
 }
 
 const API_BASE = resolveApiBase();
@@ -176,7 +179,7 @@ await app.register(fastifyCors, {
 Pre current Railway setup sú dôležité ešte dve veci:
 
 - v production musí API bežať s `trustProxy: true`
-- session cookie musí mať `SameSite=None` a `Secure`, lebo web a API bežia na rozdielnych Railway doménach
+- session cookie musí mať `SameSite=None` a `Secure`, ale Safari-safe cesta je dnes first-party `/api` proxy cez web runtime, nie priame cross-site fetch volania na API doménu
 
 2. **Web strana** (v fetch/axios):
 
@@ -202,7 +205,7 @@ fetch(url, { credentials: "include" }) // ← DÔLEŽITÉ
 ### ❌ Web sa neprepája na API (CORS error)
 
 **Riešenie:** Skontroluj:
-1. `VITE_API_URL` v Railway variables nastav na API base URL bez `/api`
+1. `VITE_API_URL` v Railway variables nastav na `/api`
 2. API `CORS_ORIGIN` settings (má byť `https://marpex-web.railway.app`)
 3. Fetch/axios call má `credentials: "include"`
 
@@ -218,7 +221,7 @@ fetch(url, { credentials: "include" }) // ← DÔLEŽITÉ
 - [ ] Vytvoril som nový web service v Railway
 - [ ] Web service používa `06_IMPLEMENTATION/apps/web/Dockerfile`
 - [ ] Build context obsahuje celý repo root s `06_IMPLEMENTATION/`
-- [ ] `VITE_API_URL` premenná ukazuje na správny API service bez `/api`
+- [ ] `VITE_API_URL` je `/api` alebo prázdna, aby browser použil same-origin proxy
 - [ ] Web sa builday bez erroru
 - [ ] Web sa spúšťa na porte 3000
 - [ ] Frontend HTML sa loady (môžeš vidieť v braužéri)

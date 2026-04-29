@@ -19,16 +19,16 @@ COPY 06_IMPLEMENTATION/packages/domain ./packages/domain
 
 RUN npm -w packages/domain run build && npm -w apps/web run build
 
-FROM node:22-alpine AS runtime
-WORKDIR /app
+FROM nginx:1.27-alpine AS runtime
 
-RUN npm install -g serve@14
+ENV PORT=3000
 
-COPY --from=builder /app/06_IMPLEMENTATION/apps/web/dist ./dist
+COPY --from=builder /app/06_IMPLEMENTATION/apps/web/dist /usr/share/nginx/html
+COPY 06_IMPLEMENTATION/apps/web/nginx.conf /etc/nginx/templates/default.conf.template
 
 EXPOSE 3000
 
 HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:${PORT:-3000}/ || exit 1
+  CMD wget -qO- http://127.0.0.1:${PORT}/ || exit 1
 
-CMD ["sh", "-c", "serve -s dist -l tcp://0.0.0.0:${PORT:-3000}"]
+CMD ["nginx", "-g", "daemon off;"]

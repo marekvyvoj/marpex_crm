@@ -19,10 +19,14 @@ describe("web api client", () => {
   });
 
   it("normalizes API base values with or without /api suffix", () => {
-    expect(resolveApiBase("/api")).toBe("/api");
-    expect(resolveApiBase("https://marpexcrm-production.up.railway.app")).toBe("https://marpexcrm-production.up.railway.app/api");
-    expect(resolveApiBase("https://marpexcrm-production.up.railway.app/api")).toBe("https://marpexcrm-production.up.railway.app/api");
-    expect(buildApiUrl("/auth/login", "https://marpexcrm-production.up.railway.app/api")).toBe("https://marpexcrm-production.up.railway.app/api/auth/login");
+    expect(resolveApiBase("/api", "https://web-production-c47f4.up.railway.app")).toBe("/api");
+    expect(resolveApiBase("https://marpexcrm-production.up.railway.app", "https://marpexcrm-production.up.railway.app")).toBe(
+      "https://marpexcrm-production.up.railway.app/api",
+    );
+    expect(resolveApiBase("https://marpexcrm-production.up.railway.app", "https://web-production-c47f4.up.railway.app")).toBe(
+      "/api",
+    );
+    expect(buildApiUrl("/auth/login", "/api")).toBe("/api/auth/login");
   });
 
   it("returns undefined for 204 responses", async () => {
