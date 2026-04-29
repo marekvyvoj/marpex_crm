@@ -1,13 +1,13 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import argon2 from "argon2";
 import { db } from "../db/index.js";
 import { users } from "../db/schema.js";
 import { sendError } from "../lib/http.js";
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  email: z.string().trim().email().toLowerCase(),
   password: z.string().min(1),
 });
 
@@ -54,7 +54,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     const [user] = await db
       .select()
       .from(users)
-      .where(eq(users.email, body.email))
+      .where(sql`lower(${users.email}) = ${body.email}`)
       .limit(1);
 
     if (!user || !user.active) {

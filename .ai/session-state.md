@@ -1,9 +1,9 @@
 # Session State
 
-Last updated: 2026-04-28
-Current task: Customer table modernization, legacy customer DB column cleanup, and approved commit or push or deploy follow-through
-Current phase: Local implementation, migration validation, and release build complete; ready for commit, push, and deploy monitoring
-Approval status: User explicitly approved local Docker startup, local DB migration on a disposable target, and remote mutation via commit, push, and deploy.
+Last updated: 2026-04-29
+Current task: Railway production login failure for the salesperson account with mixed-case email input; fix, validate, and complete commit or push or deploy follow-through
+Current phase: Auth normalization patch implemented and locally typechecked; DB-backed integration validation is environment-blocked, pending commit or push or deploy and live smoke verification
+Approval status: User explicitly requested Railway log inspection plus commit, push, and deploy for the live production incident.
 
 ## Repository Discovery
 
@@ -112,6 +112,12 @@ Approval status: User explicitly approved local Docker startup, local DB migrati
 - `railway ssh -s marpex_crm sh -lc "cd /app; npm -w apps/api run db:migrate"`: passed in production.
 - `railway ssh -s marpex_crm sh -lc "cd /app; npm -w apps/api run db:seed"`: initially failed because the deployed workspace did not contain `SourceData`, then passed after duplicating the workbook files into `06_IMPLEMENTATION/SourceData` and redeploying.
 - Public smoke checks passed: `GET https://marpexcrm-production.up.railway.app/api/health` returned `200`, `GET https://web-production-c47f4.up.railway.app` returned `200`, and live login with `manager@marpex.sk / manager123` returned `200` for `/api/auth/login`, `/api/auth/me`, and `/api/customers`.
+- `cd 06_IMPLEMENTATION && railway status`: confirmed the linked live target is project `ravishing-flow`, environment `production`, service `marpex_crm`.
+- `cd 06_IMPLEMENTATION && railway logs -s marpex_crm -n 200`: showed repeated `401` login attempts followed by `429` around `2026-04-29T08:35Z` to `08:37Z`, matching the user's reported `~10:36` local login failure window.
+- Direct production probes to `https://marpexcrm-production.up.railway.app/api/auth/login` with `sales123`: lowercase `obchodnik1@marpex.sk` returned `200`, while mixed-case `Obchodnik1@marpex.sk` returned `401`, confirming case-sensitive email matching as the root cause.
+- `cd 07_TEST_SUITE && npx vitest run integration/api.spec.ts --config vitest.config.ts -t "accepts login email regardless of case"`: reached the new slice but was blocked by local PostgreSQL unavailability (`ECONNREFUSED` on `127.0.0.1:5432` and `::1:5432`).
+- `cd 06_IMPLEMENTATION && npm run typecheck`: passed after the auth normalization patch.
+- `get_errors` on `apps/api/src/routes/auth.ts`, `apps/api/src/routes/users.ts`, and `07_TEST_SUITE/integration/api.spec.ts`: no errors.
 
 ## Review Results
 
@@ -129,6 +135,8 @@ Approval status: User explicitly approved local Docker startup, local DB migrati
 - Same-session reduced-assurance reviewer pass for the current customer-grid and legacy-column task found no remaining active runtime references to customer `profit`, `potential`, or `strategic_category`; the only remaining `potentialEur` matches are visit-related and intentional.
 - Same-session security pass for the current task confirmed the DB cleanup stays at the migration-file level only in this session. No destructive DB command or deploy action was run.
 - Same-session security pass for the current release step confirmed the only local mutation beyond code edits was a disposable Docker-backed PostgreSQL migration validation. Auth, env, cookies, deployment wrappers, and production data were not changed locally.
+- Same-session reduced-assurance reviewer pass for the current auth incident found the smallest safe fix is email canonicalization at login and user creation plus a case-insensitive login lookup; no additional route or session-contract changes were needed.
+- Same-session security pass for the current auth incident confirmed the patch does not alter `trustProxy`, CORS, session cookie flags, or Railway runtime configuration; it only changes email matching semantics for auth.
 
 ## Active Blockers And Manual Confirmation
 
@@ -173,6 +181,9 @@ Approval status: User explicitly approved local Docker startup, local DB migrati
 - Synced `06_IMPLEMENTATION/docs/openapi.yaml`, `06_IMPLEMENTATION/docs/LAUNCH_CHECKLIST.md`, and the Railway deployment guides so the documented customer contract and `VITE_API_URL` guidance match the new code.
 - Added `06_IMPLEMENTATION/SourceData` as a duplicate of the workbook set so Railway's workspace-based build includes the Excel files needed for production seeding.
 - Extended the nearest integration coverage in `07_TEST_SUITE/integration/api.spec.ts` for `industry`, SourceData fields, and profit updates, and the targeted scenario passed after local DB setup.
+- Live incident discovery showed the current production login route still compared emails case-sensitively: Railway logs around `08:35Z` show repeated `401` requests from a single client IP followed by `429`, and a direct probe reproduced `200` for lowercase `obchodnik1@marpex.sk` versus `401` for mixed-case `Obchodnik1@marpex.sk` with the same password.
+- Patched `apps/api/src/routes/auth.ts` to trim or lowercase login input and compare against `lower(users.email)`, patched `apps/api/src/routes/users.ts` to persist newly created user emails in lowercase, and added a focused integration test for uppercase login input in `07_TEST_SUITE/integration/api.spec.ts`.
+- Local DB-backed verification for the new auth test is currently blocked because no PostgreSQL server is reachable on `localhost:5432`; typecheck and workspace diagnostics passed, and live post-deploy smoke is still pending.
 
 ## Handoff Summary
 

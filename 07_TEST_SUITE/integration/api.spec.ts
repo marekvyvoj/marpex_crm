@@ -59,6 +59,13 @@ describe("API integration", () => {
     }
   });
 
+  it("accepts login email regardless of case", async () => {
+    const { response } = await loginAs(app, "Obchodnik1@marpex.sk", "sales123", "127.0.0.76");
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ email: "obchodnik1@marpex.sk", role: "sales" });
+  });
+
   it("rate limits repeated failed logins and keeps valid logins separate", async () => {
     for (let attempt = 0; attempt < 5; attempt++) {
       const { response } = await loginAs(app, "manager@marpex.sk", "zle-heslo", "127.0.0.66");

@@ -19,7 +19,7 @@ const safeUserColumns = {
 
 const userCreateSchema = z.object({
   name: z.string().min(1).max(255),
-  email: z.string().email(),
+  email: z.string().trim().email().toLowerCase(),
   password: z.string().min(8),
   role: z.enum(["manager", "sales"]).default("sales"),
 });

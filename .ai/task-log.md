@@ -101,6 +101,18 @@
 - Verified with direct SQL queries that the `customers` table no longer has `profit`, `potential`, or `strategic_category` and that the `strategic_category` enum type is gone.
 - Validated with `cd 06_IMPLEMENTATION && npx vitest run tests/web/customers-page.spec.tsx --config vitest.phase5.config.ts`, `cd 06_IMPLEMENTATION && npm run typecheck`, and `cd 06_IMPLEMENTATION && npm run build`; all passed.
 
+## 2026-04-29
+
+### Railway Login Failure Root Cause And Fix
+
+- Confirmed in live Railway production logs that the user's reported `~10:36` incident matches a burst of `POST /api/auth/login` failures from one IP around `08:35Z`, followed by `429` rate limiting after repeated retries.
+- Reproduced the production bug directly against the live API: `obchodnik1@marpex.sk / sales123` returned `200`, while `Obchodnik1@marpex.sk / sales123` returned `401`, proving case-sensitive email matching in the auth query.
+- Patched `apps/api/src/routes/auth.ts` so login trims and lowercases the email input and compares against `lower(users.email)`, which also covers any existing mixed-case rows.
+- Patched `apps/api/src/routes/users.ts` so newly created user emails are stored lowercase and do not reintroduce the same mismatch.
+- Added a focused integration test in `07_TEST_SUITE/integration/api.spec.ts` for successful login with uppercase email input.
+- Validation: `cd 06_IMPLEMENTATION && npm run typecheck` passed, and `get_errors` on the touched files reported no errors.
+- DB-backed integration validation is currently blocked in this shell because PostgreSQL is not reachable on `localhost:5432`; live post-deploy login smoke is still pending.
+
 ## Logging Rules
 
 - Append short factual entries only.

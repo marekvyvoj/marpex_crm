@@ -88,3 +88,10 @@
 
 - Decision: Require the fixed demo email allowlist in the rebalance script, limit visits and tasks to seed-shaped records, and only rewrite the initial seeded opportunity stage-history author when reassigning owners.
 - Why: The reviewer correctly flagged that a broader mutation could reassign live user data or leave seeded history inconsistent. This keeps the one-time backfill narrowly aligned with what the seed actually created.
+
+## 2026-04-29
+
+### Canonicalize User Emails At The Auth Boundary
+
+- Decision: Trim and lowercase user emails on login and user creation, and compare login lookups case-insensitively in the API.
+- Why: The live Railway incident was reproducible only by email letter case. `obchodnik1@marpex.sk` authenticated successfully, while `Obchodnik1@marpex.sk` with the same password returned `401` and then escalated into the existing IP-based rate limiter. Canonicalizing the email at the auth boundary fixes the user-visible failure without changing cookies, sessions, or deployment config.
