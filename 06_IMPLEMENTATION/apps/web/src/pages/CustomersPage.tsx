@@ -241,11 +241,11 @@ export function CustomersPage() {
 
   const { data: salesUsers = [] } = useQuery<UserOption[]>({
     queryKey: ["users", "sales-options"],
-    queryFn: () => api("/users"),
-    enabled: !authLoading && user?.role === "manager",
+    queryFn: () => api("/users/sales-options"),
+    enabled: !authLoading && showForm,
   });
 
-  const activeSalesUsers = salesUsers.filter((candidate) => candidate.role === "sales" && candidate.active);
+  const activeSalesUsers = salesUsers;
   const availableResolverUsers = activeSalesUsers.filter((candidate) => candidate.id !== ownerId);
 
   const create = useMutation({
@@ -256,8 +256,8 @@ export function CustomersPage() {
           name,
           segment,
           industry: industry || undefined,
-          ownerId: user?.role === "manager" ? (ownerId || null) : undefined,
-          resolverIds: user?.role === "manager" ? resolverIds.filter((resolverId) => resolverId !== ownerId) : undefined,
+          ownerId: ownerId || null,
+          resolverIds: resolverIds.filter((resolverId) => resolverId !== ownerId),
         }),
       }),
     onSuccess: () => {
@@ -265,7 +265,7 @@ export function CustomersPage() {
       setShowForm(false);
       setName("");
       setIndustry("");
-      setOwnerId("");
+      setOwnerId(user?.role === "sales" ? user.id : "");
       setResolverIds([]);
     },
   });
@@ -319,6 +319,14 @@ export function CustomersPage() {
       : current.filter((currentResolverId) => currentResolverId !== resolverId));
   }
 
+  function toggleCreateForm() {
+    if (!showForm && user?.role === "sales" && !ownerId) {
+      setOwnerId(user.id);
+    }
+
+    setShowForm((current) => !current);
+  }
+
   if (authLoading) {
     return <p className="text-gray-400 text-sm">Načítavam…</p>;
   }
@@ -335,7 +343,7 @@ export function CustomersPage() {
         <div className="flex flex-col gap-2 sm:items-end">
           {user?.role === "sales" && <ScopeToggle scope={scope} onChange={setScope} mineLabel="Moje firmy" allLabel="Všetci obchodníci" />}
           <button
-            onClick={() => setShowForm(!showForm)}
+            onClick={toggleCreateForm}
             className="bg-blue-600 text-white text-sm px-4 py-2 rounded hover:bg-blue-700"
           >
             {showForm ? "Zavrieť" : "+ Nový zákazník"}
@@ -362,34 +370,30 @@ export function CustomersPage() {
             <option value="">Odvetvie</option>
             {customerIndustries.map((value) => <option key={value} value={value}>{formatIndustry(value)}</option>)}
           </select>
-          {user?.role === "manager" && (
-            <select value={ownerId} onChange={(e) => setOwnerId(e.target.value)} className="border border-gray-300 rounded px-3 py-2 text-sm">
-              <option value="">Vlastník – nepriradené</option>
-              {activeSalesUsers.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}
-            </select>
-          )}
-          {user?.role === "manager" && (
-            <div className="col-span-3 rounded-lg border border-gray-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
-              <p className="font-medium text-slate-900">Riešitelia</p>
-              <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
-                {availableResolverUsers.map((candidate) => {
-                  const checked = resolverIds.includes(candidate.id);
+          <select aria-label="Vlastník zákazníka" value={ownerId} onChange={(e) => setOwnerId(e.target.value)} className="border border-gray-300 rounded px-3 py-2 text-sm">
+            <option value="">Vlastník – nepriradené</option>
+            {activeSalesUsers.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}
+          </select>
+          <div className="col-span-3 rounded-lg border border-gray-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
+            <p className="font-medium text-slate-900">Riešitelia</p>
+            <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+              {availableResolverUsers.map((candidate) => {
+                const checked = resolverIds.includes(candidate.id);
 
-                  return (
-                    <label key={candidate.id} className="flex items-center gap-2 rounded border border-slate-200 bg-white px-3 py-2">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={(event) => toggleResolver(candidate.id, event.target.checked)}
-                      />
-                      <span>{candidate.name}</span>
-                    </label>
-                  );
-                })}
-              </div>
-              {availableResolverUsers.length === 0 && <p className="mt-2 text-xs text-slate-500">Žiadni ďalší obchodníci na priradenie.</p>}
+                return (
+                  <label key={candidate.id} className="flex items-center gap-2 rounded border border-slate-200 bg-white px-3 py-2">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(event) => toggleResolver(candidate.id, event.target.checked)}
+                    />
+                    <span>{candidate.name}</span>
+                  </label>
+                );
+              })}
             </div>
-          )}
+            {availableResolverUsers.length === 0 && <p className="mt-2 text-xs text-slate-500">Žiadni ďalší obchodníci na priradenie.</p>}
+          </div>
           <button type="submit" className="bg-blue-600 text-white text-sm rounded px-4 py-2 hover:bg-blue-700">
             Uložiť
           </button>

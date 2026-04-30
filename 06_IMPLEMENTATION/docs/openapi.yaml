@@ -131,6 +131,7 @@ paths:
     post:
       tags: [Customers]
       summary: Create customer
+      description: Any authenticated user can set the owner and resolver list to active salespeople.
       requestBody:
         required: true
         content:
@@ -404,6 +405,7 @@ paths:
     post:
       tags: [Tasks]
       summary: Create task
+      description: Tasks can be assigned to another salesperson with `ownerId`. When the assignee is a salesperson on the linked customer, they become a resolver for that customer.
       requestBody:
         required: true
         content:
@@ -414,6 +416,8 @@ paths:
               properties:
                 title:
                   type: string
+                description:
+                  type: string
                 dueDate:
                   type: string
                   format: date
@@ -421,6 +425,9 @@ paths:
                   type: string
                   format: uuid
                 customerId:
+                  type: string
+                  format: uuid
+                ownerId:
                   type: string
                   format: uuid
       responses:
@@ -488,6 +495,30 @@ paths:
       responses:
         '200':
           description: Planner payload for the logged-in user scope
+  /api/users/sales-options:
+    get:
+      tags: [Users]
+      summary: List active salespeople for assignment pickers
+      responses:
+        '200':
+          description: Active salespeople
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    name:
+                      type: string
+                    role:
+                      type: string
+                      enum: [sales]
+                    active:
+                      type: boolean
           content:
             application/json:
               schema:
@@ -860,4 +891,18 @@ components:
         completedAt:
           type: string
           format: date-time
+          nullable: true
+        ownerId:
+          type: string
+          format: uuid
+        ownerName:
+          type: string
+          nullable: true
+        opportunityId:
+          type: string
+          format: uuid
+          nullable: true
+        customerId:
+          type: string
+          format: uuid
           nullable: true

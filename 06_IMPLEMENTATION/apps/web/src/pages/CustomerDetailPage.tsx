@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "../components/AuthProvider.tsx";
 import { api } from "../lib/api.ts";
 import { customerSegments, customerIndustries, contactRoles } from "@marpex/domain";
 
@@ -142,7 +141,6 @@ function getYearProgress(date: Date) {
 }
 
 export function CustomerDetailPage() {
-  const { user } = useAuth();
   const { id } = useParams<{ id: string }>();
   const qc = useQueryClient();
   const [tab, setTab] = useState<Tab>("contacts");
@@ -157,11 +155,11 @@ export function CustomerDetailPage() {
 
   const { data: salesUsers = [] } = useQuery<UserOption[]>({
     queryKey: ["users", "sales-options"],
-    queryFn: () => api("/users"),
-    enabled: user?.role === "manager",
+    queryFn: () => api("/users/sales-options"),
+    enabled: editMode,
   });
 
-  const activeSalesUsers = salesUsers.filter((candidate) => candidate.role === "sales" && candidate.active);
+  const activeSalesUsers = salesUsers;
 
   const [editForm, setEditForm] = useState<Partial<Customer>>({});
   const selectedOwnerId = String((editForm as { ownerId?: string }).ownerId ?? "");
@@ -308,14 +306,12 @@ export function CustomerDetailPage() {
         body.annualRevenuePlanYear = currentYear;
       }
     }
-    if (user?.role === "manager") {
-      if ((editForm as any).ownerId !== undefined) {
-        body.ownerId = (editForm as any).ownerId || null;
-      }
+    if ((editForm as any).ownerId !== undefined) {
+      body.ownerId = (editForm as any).ownerId || null;
+    }
 
-      if ((editForm as any).resolverIds !== undefined) {
-        body.resolverIds = ((editForm as any).resolverIds as string[]).filter((resolverId) => resolverId !== (editForm as any).ownerId);
-      }
+    if ((editForm as any).resolverIds !== undefined) {
+      body.resolverIds = ((editForm as any).resolverIds as string[]).filter((resolverId) => resolverId !== (editForm as any).ownerId);
     }
     updateCustomer.mutate(body);
   }
@@ -370,38 +366,35 @@ export function CustomerDetailPage() {
             <option value="">Odvetvie –</option>
             {customerIndustries.map((value) => <option key={value} value={value}>{formatIndustry(value)}</option>)}
           </select>
-          {user?.role === "manager" && (
-            <select
-              className="border border-gray-300 rounded px-3 py-2 text-sm"
-              value={(editForm as any).ownerId ?? ""}
-              onChange={(e) => setEditForm((f) => ({ ...f, ownerId: e.target.value || undefined }))}
-            >
-              <option value="">Vlastník – nepriradené</option>
-              {activeSalesUsers.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}
-            </select>
-          )}
-          {user?.role === "manager" && (
-            <div className="md:col-span-4 rounded-lg border border-gray-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
-              <p className="font-medium text-slate-900">Riešitelia</p>
-              <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
-                {availableResolverUsers.map((candidate) => {
-                  const checked = ((editForm as any).resolverIds ?? []).includes(candidate.id);
+          <select
+            aria-label="Vlastník zákazníka"
+            className="border border-gray-300 rounded px-3 py-2 text-sm"
+            value={(editForm as any).ownerId ?? ""}
+            onChange={(e) => setEditForm((f) => ({ ...f, ownerId: e.target.value || undefined }))}
+          >
+            <option value="">Vlastník – nepriradené</option>
+            {activeSalesUsers.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}
+          </select>
+          <div className="md:col-span-4 rounded-lg border border-gray-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
+            <p className="font-medium text-slate-900">Riešitelia</p>
+            <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+              {availableResolverUsers.map((candidate) => {
+                const checked = ((editForm as any).resolverIds ?? []).includes(candidate.id);
 
-                  return (
-                    <label key={candidate.id} className="flex items-center gap-2 rounded border border-slate-200 bg-white px-3 py-2">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={(event) => toggleResolver(candidate.id, event.target.checked)}
-                      />
-                      <span>{candidate.name}</span>
-                    </label>
-                  );
-                })}
-              </div>
-              {availableResolverUsers.length === 0 && <p className="mt-2 text-xs text-slate-500">Žiadni ďalší obchodníci na priradenie.</p>}
+                return (
+                  <label key={candidate.id} className="flex items-center gap-2 rounded border border-slate-200 bg-white px-3 py-2">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(event) => toggleResolver(candidate.id, event.target.checked)}
+                    />
+                    <span>{candidate.name}</span>
+                  </label>
+                );
+              })}
             </div>
-          )}
+            {availableResolverUsers.length === 0 && <p className="mt-2 text-xs text-slate-500">Žiadni ďalší obchodníci na priradenie.</p>}
+          </div>
           <input
             placeholder="IČO"
             className="border border-gray-300 rounded px-3 py-2 text-sm"

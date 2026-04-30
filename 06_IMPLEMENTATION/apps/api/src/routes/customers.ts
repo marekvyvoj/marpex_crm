@@ -5,7 +5,7 @@ import { db } from "../db/index.js";
 import { customers, customerResolvers, contacts, visits, opportunities, abraRevenues, abraQuotes, abraOrders, users } from "../db/schema.js";
 import { customerSchema, contactSchema, customerSegments, customerIndustries } from "@marpex/domain";
 import { writeAudit } from "../lib/audit.js";
-import { loadAccessibleCustomerIds } from "../lib/customer-access.js";
+import { loadAccessibleCustomerIds, loadCustomerResolverRows, loadResolverIdsForCustomer } from "../lib/customer-access.js";
 import { sendError } from "../lib/http.js";
 import { paginationQuerySchema, resolvePagination, setPaginationHeaders } from "../lib/pagination.js";
 import { listScopeSchema, shouldUseAllScope } from "../lib/view-scope.js";
@@ -72,16 +72,7 @@ async function withCustomerDecorations<T extends { id: string; currentRevenue?: 
           inArray(abraRevenues.year, [currentYear, currentYear - 1]),
         ),
       ),
-    db
-      .select({
-        customerId: customerResolvers.customerId,
-        userId: customerResolvers.userId,
-        userName: users.name,
-      })
-      .from(customerResolvers)
-      .innerJoin(users, eq(customerResolvers.userId, users.id))
-      .where(inArray(customerResolvers.customerId, customerIds))
-      .orderBy(users.name),
+    loadCustomerResolverRows(customerIds),
   ]);
 
   const revenuesByCustomer = new Map<string, { currentYearRevenue: string | null; previousYearRevenue: string | null }>();
@@ -142,15 +133,6 @@ async function loadActiveSalesIds(candidateIds: string[]) {
     .where(and(inArray(users.id, candidateIds), eq(users.role, "sales"), eq(users.active, true)));
 
   return new Set(rows.map((row) => row.id));
-}
-
-async function loadResolverIdsForCustomer(customerId: string) {
-  const rows = await db
-    .select({ userId: customerResolvers.userId })
-    .from(customerResolvers)
-    .where(eq(customerResolvers.customerId, customerId));
-
-  return rows.map((row) => row.userId);
 }
 
 async function loadCustomerById(customerId: string) {
@@ -238,26 +220,10 @@ export const customerRoutes: FastifyPluginAsync = async (app) => {
     let ownerId: string | null = userRole === "sales" ? userId : null;
 
     if (body.ownerId !== undefined) {
-      if (body.ownerId === null) {
-        if (userRole !== "manager") {
-          return sendError(reply, 403, "FORBIDDEN", "Obchodník môže priradiť zákazníka len sebe.");
-        }
-
-        ownerId = null;
-      } else {
-        if (userRole !== "manager" && body.ownerId !== userId) {
-          return sendError(reply, 403, "FORBIDDEN", "Obchodník môže priradiť zákazníka len sebe.");
-        }
-
-        ownerId = body.ownerId;
-      }
+      ownerId = body.ownerId;
     }
 
-    if (userRole !== "manager" && body.resolverIds !== undefined) {
-      return sendError(reply, 403, "FORBIDDEN", "Obchodník nemôže meniť riešiteľov.");
-    }
-
-    const resolverIds = normalizeResolverIds(userRole === "manager" ? body.resolverIds : undefined).filter((resolverId) => resolverId !== ownerId);
+    const resolverIds = normalizeResolverIds(body.resolverIds).filter((resolverId) => resolverId !== ownerId);
     const candidateIds = [...new Set([ownerId, ...resolverIds].filter((candidateId): candidateId is string => Boolean(candidateId)))];
     const activeSalesIds = await loadActiveSalesIds(candidateIds);
 
@@ -332,7 +298,6 @@ export const customerRoutes: FastifyPluginAsync = async (app) => {
     z.string().uuid().parse(request.params.id);
     const body = customerSchema.partial().parse(request.body);
     const userId = request.userId!;
-    const userRole = request.userRole!;
     const [existingCustomer] = await db
       .select({ id: customers.id, ownerId: customers.salespersonId })
       .from(customers)
@@ -361,26 +326,10 @@ export const customerRoutes: FastifyPluginAsync = async (app) => {
     if (body.annualRevenuePlanYear !== undefined) updateData.annualRevenuePlanYear = body.annualRevenuePlanYear;
     if (body.shareOfWallet !== undefined) updateData.shareOfWallet = body.shareOfWallet;
     if (body.ownerId !== undefined) {
-      if (body.ownerId === null) {
-        if (userRole !== "manager") {
-          return sendError(reply, 403, "FORBIDDEN", "Obchodník môže zmeniť priradenie len na seba.");
-        }
-
-        nextOwnerId = null;
-      } else {
-        if (userRole !== "manager" && body.ownerId !== userId) {
-          return sendError(reply, 403, "FORBIDDEN", "Obchodník môže zmeniť priradenie len na seba.");
-        }
-
-        nextOwnerId = body.ownerId;
-      }
+      nextOwnerId = body.ownerId;
     }
 
     if (body.resolverIds !== undefined) {
-      if (userRole !== "manager") {
-        return sendError(reply, 403, "FORBIDDEN", "Obchodník nemôže meniť riešiteľov.");
-      }
-
       nextResolverIds = normalizeResolverIds(body.resolverIds);
     }
 

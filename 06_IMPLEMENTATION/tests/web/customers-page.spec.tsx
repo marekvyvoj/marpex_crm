@@ -161,4 +161,60 @@ describe("CustomersPage", () => {
 
     await waitFor(() => expect(apiMock).toHaveBeenLastCalledWith("/customers?scope=all"));
   });
+
+  it("lets a salesperson set owner and resolvers when creating a customer", async () => {
+    apiMock.mockImplementation(async (path: string, init?: { method?: string; body?: string }) => {
+      if (path === "/customers") {
+        if (init?.method === "POST") {
+          return {
+            id: "customer-99",
+            name: "Phase5 Shared Account",
+            segment: "vyroba",
+            industry: null,
+            ownerId: "sales-2",
+            ownerName: "Patrik Bača",
+            resolverIds: ["sales-3"],
+            resolverNames: ["Dušan Gabriška"],
+          };
+        }
+
+        return [];
+      }
+
+      if (path === "/users/sales-options") {
+        return [
+          { id: "sales-1", name: "Obchodník", role: "sales", active: true },
+          { id: "sales-2", name: "Patrik Bača", role: "sales", active: true },
+          { id: "sales-3", name: "Dušan Gabriška", role: "sales", active: true },
+        ];
+      }
+
+      throw new Error(`Unhandled api call: ${path}`);
+    });
+
+    renderCustomersPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "+ Nový zákazník" }));
+    await screen.findByRole("option", { name: "Patrik Bača" });
+    fireEvent.change(screen.getByPlaceholderText("Názov firmy"), { target: { value: "Phase5 Shared Account" } });
+    fireEvent.change(screen.getByLabelText("Vlastník zákazníka"), { target: { value: "sales-2" } });
+    fireEvent.click(screen.getByLabelText("Dušan Gabriška"));
+    fireEvent.click(screen.getByRole("button", { name: "Uložiť" }));
+
+    await waitFor(() => {
+      expect(apiMock).toHaveBeenCalledWith(
+        "/customers",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            name: "Phase5 Shared Account",
+            segment: "oem",
+            industry: undefined,
+            ownerId: "sales-2",
+            resolverIds: ["sales-3"],
+          }),
+        }),
+      );
+    });
+  });
 });

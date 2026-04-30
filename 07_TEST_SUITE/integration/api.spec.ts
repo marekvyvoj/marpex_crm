@@ -990,6 +990,70 @@ describe("API integration", () => {
     expect(missingUser.statusCode).toBe(404);
   });
 
+  it("lists active sales options for any authenticated user", async () => {
+    const sales = await getUserByEmail("obchodnik1@marpex.sk");
+    const otherSales = await getUserByEmail("obchodnik2@marpex.sk");
+    const { cookie } = await loginAs(app, "obchodnik1@marpex.sk", "sales123", "127.0.0.93");
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/users/sales-options",
+      headers: { cookie },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: sales.id, role: "sales", active: true }),
+        expect.objectContaining({ id: otherSales.id, role: "sales", active: true }),
+      ]),
+    );
+    expect(response.json().every((row: { role: string; active: boolean }) => row.role === "sales" && row.active)).toBe(true);
+  });
+
+  it("allows a salesperson to change customer owner and resolvers", async () => {
+    const sales = await getUserByEmail("obchodnik1@marpex.sk");
+    const otherSales = await getUserByEmail("obchodnik2@marpex.sk");
+    const customer = await createTestCustomer({
+      name: `Phase5 Sales Reassign ${randomUUID().slice(0, 6)}`,
+      ownerId: sales.id,
+    });
+    const salesLogin = await loginAs(app, "obchodnik1@marpex.sk", "sales123", "127.0.0.94");
+
+    const updateResponse = await app.inject({
+      method: "PATCH",
+      url: `/api/customers/${customer.id}`,
+      headers: { cookie: salesLogin.cookie },
+      payload: {
+        ownerId: otherSales.id,
+        resolverIds: [sales.id],
+      },
+    });
+
+    expect(updateResponse.statusCode).toBe(200);
+    expect(updateResponse.json()).toMatchObject({
+      ownerId: otherSales.id,
+      resolverIds: [sales.id],
+    });
+
+    const otherSalesLogin = await loginAs(app, "obchodnik2@marpex.sk", "sales123", "127.0.0.95");
+    const ownerPortfolio = await app.inject({
+      method: "GET",
+      url: "/api/customers",
+      headers: { cookie: otherSalesLogin.cookie },
+    });
+    const resolverPortfolio = await app.inject({
+      method: "GET",
+      url: "/api/customers",
+      headers: { cookie: salesLogin.cookie },
+    });
+
+    expect(ownerPortfolio.statusCode).toBe(200);
+    expect(resolverPortfolio.statusCode).toBe(200);
+    expect(ownerPortfolio.json().some((row: { id: string }) => row.id === customer.id)).toBe(true);
+    expect(resolverPortfolio.json().some((row: { id: string }) => row.id === customer.id)).toBe(true);
+  });
+
   it("creates, filters, completes and deletes tasks", async () => {
     const { cookie } = await loginAs(app, "manager@marpex.sk", "manager123", "127.0.0.92");
     const manager = await getUserByEmail("manager@marpex.sk");
@@ -1093,6 +1157,53 @@ describe("API integration", () => {
       headers: { cookie },
     });
     expect(missingDelete.statusCode).toBe(404);
+  });
+
+  it("adds resolver access when a task is assigned to another salesperson", async () => {
+    const manager = await getUserByEmail("manager@marpex.sk");
+    const delegatedSales = await getUserByEmail("obchodnik2@marpex.sk");
+    const managerLogin = await loginAs(app, "manager@marpex.sk", "manager123", "127.0.0.98");
+    const customer = await createTestCustomer({
+      name: `Phase5 Delegated Task ${randomUUID().slice(0, 6)}`,
+      ownerId: null,
+    });
+    const opportunity = await createTestOpportunity({
+      customerId: customer.id,
+      ownerId: manager.id,
+      title: `Phase5 Delegated Opp ${randomUUID().slice(0, 6)}`,
+      stage: "qualified",
+      value: "31000",
+      nextStepDeadline: "2026-05-18",
+    });
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/api/tasks",
+      headers: { cookie: managerLogin.cookie },
+      payload: {
+        title: "Phase5 Delegated Task",
+        dueDate: "2026-05-16",
+        opportunityId: opportunity.id,
+        ownerId: delegatedSales.id,
+      },
+    });
+
+    expect(createResponse.statusCode).toBe(201);
+    expect(createResponse.json()).toMatchObject({
+      ownerId: delegatedSales.id,
+      ownerName: delegatedSales.name,
+      customerId: customer.id,
+    });
+
+    const delegatedLogin = await loginAs(app, "obchodnik2@marpex.sk", "sales123", "127.0.0.99");
+    const customerList = await app.inject({
+      method: "GET",
+      url: "/api/customers",
+      headers: { cookie: delegatedLogin.cookie },
+    });
+
+    expect(customerList.statusCode).toBe(200);
+    expect(customerList.json().some((row: { id: string }) => row.id === customer.id)).toBe(true);
   });
 
   it("rejects mismatched contact/customer pair and returns 404 for missing visit", async () => {

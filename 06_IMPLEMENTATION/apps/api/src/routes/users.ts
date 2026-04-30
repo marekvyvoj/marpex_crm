@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { hash } from "argon2";
 import { db } from "../db/index.js";
 import { users } from "../db/schema.js";
@@ -36,6 +36,14 @@ const userUpdateSchema = z
 type UserListQuery = z.input<typeof paginationQuerySchema>;
 
 export const userRoutes: FastifyPluginAsync = async (app) => {
+  app.get("/sales-options", async () => {
+    return db
+      .select({ id: users.id, name: users.name, role: users.role, active: users.active })
+      .from(users)
+      .where(and(eq(users.role, "sales"), eq(users.active, true)))
+      .orderBy(users.name);
+  });
+
   // List users (manager only)
   app.get<{ Querystring: UserListQuery }>("/", { preHandler: [managerGuard] }, async (request, reply) => {
     const pagination = resolvePagination(request.query);

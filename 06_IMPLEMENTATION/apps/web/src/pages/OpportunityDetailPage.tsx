@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PIPELINE_STAGES, isValidTransition, type StageId } from "@marpex/domain";
+import { useAuth } from "../components/AuthProvider.tsx";
 import { api } from "../lib/api.ts";
 
 interface Opportunity {
   id: string;
   title: string;
   customerId: string;
+  ownerId: string;
   stage: StageId;
   value: string;
   nextStepSummary: string;
@@ -36,9 +38,11 @@ interface Task {
   dueDate: string;
   completedAt: string | null;
   ownerId: string;
+  ownerName: string | null;
 }
 
 interface Customer { id: string; name: string; }
+interface UserOption { id: string; name: string; role: "manager" | "sales"; active: boolean; }
 
 const STAGE_LABELS: Record<string, string> = {
   identified_need: "Identifikovaná potreba",
@@ -61,6 +65,7 @@ function dateStr(d: string) {
 }
 
 export function OpportunityDetailPage() {
+  const { user } = useAuth();
   const { id } = useParams<{ id: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const qc = useQueryClient();
@@ -68,7 +73,7 @@ export function OpportunityDetailPage() {
   const [targetStage, setTargetStage] = useState<StageId | "">("");
   const [gateForm, setGateForm] = useState<Record<string, string>>({});
   const [showTaskForm, setShowTaskForm] = useState(false);
-  const [taskForm, setTaskForm] = useState({ title: "", dueDate: "" });
+  const [taskForm, setTaskForm] = useState({ title: "", dueDate: "", ownerId: "" });
   const [stageError, setStageError] = useState("");
 
   const { data: opp, isLoading } = useQuery<Opportunity>({
@@ -92,6 +97,17 @@ export function OpportunityDetailPage() {
     enabled: !!opp?.customerId,
   });
 
+  const { data: salesUsers = [] } = useQuery<UserOption[]>({
+    queryKey: ["users", "sales-options"],
+    queryFn: () => api("/users/sales-options"),
+    enabled: showTaskForm,
+  });
+
+  const activeSalesUsers = salesUsers;
+  const defaultTaskOwnerId = user?.role === "sales"
+    ? user.id
+    : opp?.ownerId ?? activeSalesUsers[0]?.id ?? "";
+
   const moveStage = useMutation({
     mutationFn: (body: object) =>
       api(`/opportunities/${id}/stage`, { method: "PATCH", body: JSON.stringify(body) }),
@@ -113,7 +129,7 @@ export function OpportunityDetailPage() {
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["opp-tasks", id] });
       setShowTaskForm(false);
-      setTaskForm({ title: "", dueDate: "" });
+      setTaskForm({ title: "", dueDate: "", ownerId: defaultTaskOwnerId });
     },
   });
 
@@ -172,6 +188,14 @@ export function OpportunityDetailPage() {
       body.closeTimestamp = new Date().toISOString();
     }
     moveStage.mutate(body);
+  }
+
+  function toggleTaskForm() {
+    if (!showTaskForm && !taskForm.ownerId && defaultTaskOwnerId) {
+      setTaskForm((current) => ({ ...current, ownerId: defaultTaskOwnerId }));
+    }
+
+    setShowTaskForm((current) => !current);
   }
 
   return (
@@ -291,7 +315,7 @@ export function OpportunityDetailPage() {
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-sm">Úlohy / Ďalšie kroky</h3>
             {!isClosed && (
-              <button onClick={() => setShowTaskForm(!showTaskForm)} className="text-xs text-blue-600 hover:underline">
+              <button onClick={toggleTaskForm} className="text-xs text-blue-600 hover:underline">
                 {showTaskForm ? "Zavrieť" : "+ Nová úloha"}
               </button>
             )}
@@ -301,7 +325,11 @@ export function OpportunityDetailPage() {
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                createTask.mutate({ ...taskForm, opportunityId: id });
+                createTask.mutate({
+                  ...taskForm,
+                  opportunityId: id,
+                  ownerId: taskForm.ownerId || defaultTaskOwnerId || undefined,
+                });
               }}
               className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2"
             >
@@ -312,6 +340,16 @@ export function OpportunityDetailPage() {
                 aria-label="Termín úlohy"
                 onChange={(e) => setTaskForm((f) => ({ ...f, dueDate: e.target.value }))}
                 className="border border-gray-300 rounded px-2 py-1.5 text-sm" />
+              <select
+                required
+                value={taskForm.ownerId || defaultTaskOwnerId}
+                onChange={(e) => setTaskForm((f) => ({ ...f, ownerId: e.target.value }))}
+                className="border border-gray-300 rounded px-2 py-1.5 text-sm"
+                aria-label="Riešiteľ úlohy"
+              >
+                <option value="">Vybrať riešiteľa</option>
+                {activeSalesUsers.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}
+              </select>
               <button type="submit" className="text-sm bg-blue-600 text-white rounded px-3 py-1.5 hover:bg-blue-700">
                 Uložiť
               </button>
@@ -333,7 +371,7 @@ export function OpportunityDetailPage() {
                   <div className="flex-1 min-w-0">
                     <p className={`font-medium leading-tight ${t.completedAt ? "line-through" : ""}`}>{t.title}</p>
                     {t.description && <p className="text-xs text-gray-500">{t.description}</p>}
-                    <p className="text-xs text-gray-400">{t.dueDate}</p>
+                    <p className="text-xs text-gray-400">{t.dueDate}{t.ownerName ? ` • ${t.ownerName}` : ""}</p>
                   </div>
                   <button
                     type="button"

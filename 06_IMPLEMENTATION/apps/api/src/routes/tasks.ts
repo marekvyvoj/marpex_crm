@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { eq, and, isNull, isNotNull, sql, type SQL } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { tasks } from "../db/schema.js";
+import { customerResolvers, customers, opportunities, tasks, users } from "../db/schema.js";
 import { sendError } from "../lib/http.js";
 import { paginationQuerySchema, resolvePagination, setPaginationHeaders } from "../lib/pagination.js";
 
@@ -12,6 +12,7 @@ const taskCreateSchema = z.object({
   dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   opportunityId: z.string().uuid().optional(),
   customerId: z.string().uuid().optional(),
+  ownerId: z.string().uuid().optional(),
 });
 
 const taskCompleteSchema = z.object({
@@ -25,6 +26,29 @@ const taskListQuerySchema = paginationQuerySchema.extend({
 });
 
 type TaskListQuery = z.input<typeof taskListQuerySchema>;
+
+const taskSelectFields = {
+  id: tasks.id,
+  title: tasks.title,
+  description: tasks.description,
+  dueDate: tasks.dueDate,
+  completedAt: tasks.completedAt,
+  ownerId: tasks.ownerId,
+  ownerName: users.name,
+  opportunityId: tasks.opportunityId,
+  customerId: tasks.customerId,
+  createdAt: tasks.createdAt,
+  updatedAt: tasks.updatedAt,
+} as const;
+
+function isMissingCustomerResolversRelation(error: unknown) {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+
+  const candidate = error as { code?: string; message?: string };
+  return candidate.code === "42P01" && candidate.message?.includes("customer_resolvers") === true;
+}
 
 export const taskRoutes: FastifyPluginAsync = async (app) => {
   // List tasks — optional filters: opportunityId, customerId, done (true/false)
@@ -47,7 +71,12 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     const pagination = resolvePagination(request.query);
 
     if (!pagination) {
-      return db.select().from(tasks).where(where).orderBy(tasks.dueDate);
+      return db
+        .select(taskSelectFields)
+        .from(tasks)
+        .leftJoin(users, eq(tasks.ownerId, users.id))
+        .where(where)
+        .orderBy(tasks.dueDate);
     }
 
     const [{ total }] = await db
@@ -56,8 +85,9 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
       .where(where);
 
     const rows = await db
-      .select()
+      .select(taskSelectFields)
       .from(tasks)
+      .leftJoin(users, eq(tasks.ownerId, users.id))
       .where(where)
       .orderBy(tasks.dueDate)
       .limit(pagination.limit)
@@ -71,19 +101,89 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
   // Create task
   app.post("/", async (request, reply) => {
     const body = taskCreateSchema.parse(request.body);
-    const ownerId = request.userId!;
+    const ownerId = body.ownerId ?? request.userId!;
+
+    const [owner] = await db
+      .select({ id: users.id, role: users.role, active: users.active })
+      .from(users)
+      .where(eq(users.id, ownerId))
+      .limit(1);
+
+    if (!owner || !owner.active) {
+      return sendError(reply, 400, "INVALID_TASK_OWNER", "Vybraný riešiteľ úlohy neexistuje alebo nie je aktívny.");
+    }
+
+    let resolvedCustomerId = body.customerId ?? null;
+    let customerOwnerId: string | null = null;
+
+    if (body.opportunityId) {
+      const [opportunity] = await db
+        .select({ id: opportunities.id, customerId: opportunities.customerId })
+        .from(opportunities)
+        .where(eq(opportunities.id, body.opportunityId))
+        .limit(1);
+
+      if (!opportunity) {
+        return sendError(reply, 404, "OPPORTUNITY_NOT_FOUND", "Príležitosť neexistuje.");
+      }
+
+      if (resolvedCustomerId && resolvedCustomerId !== opportunity.customerId) {
+        return sendError(reply, 400, "TASK_CUSTOMER_MISMATCH", "Príležitosť nepatrí k vybranému zákazníkovi.");
+      }
+
+      resolvedCustomerId = opportunity.customerId;
+    }
+
+    if (resolvedCustomerId) {
+      const [customer] = await db
+        .select({ id: customers.id, ownerId: customers.salespersonId })
+        .from(customers)
+        .where(eq(customers.id, resolvedCustomerId))
+        .limit(1);
+
+      if (!customer) {
+        return sendError(reply, 404, "CUSTOMER_NOT_FOUND", "Zákazník neexistuje.");
+      }
+
+      customerOwnerId = customer.ownerId;
+    }
+
+    const [createdTask] = await db.transaction(async (tx) => {
+      const [taskRow] = await tx
+        .insert(tasks)
+        .values({
+          title: body.title,
+          description: body.description ?? null,
+          dueDate: body.dueDate,
+          opportunityId: body.opportunityId ?? null,
+          customerId: resolvedCustomerId,
+          ownerId,
+        })
+        .returning({ id: tasks.id });
+
+      if (resolvedCustomerId && owner.role === "sales" && owner.id !== customerOwnerId) {
+        try {
+          await tx
+            .insert(customerResolvers)
+            .values({ customerId: resolvedCustomerId, userId: owner.id })
+            .onConflictDoNothing();
+        } catch (error) {
+          if (!isMissingCustomerResolversRelation(error)) {
+            throw error;
+          }
+        }
+      }
+
+      return [taskRow];
+    });
 
     const [row] = await db
-      .insert(tasks)
-      .values({
-        title: body.title,
-        description: body.description ?? null,
-        dueDate: body.dueDate,
-        opportunityId: body.opportunityId ?? null,
-        customerId: body.customerId ?? null,
-        ownerId,
-      })
-      .returning();
+      .select(taskSelectFields)
+      .from(tasks)
+      .leftJoin(users, eq(tasks.ownerId, users.id))
+      .where(eq(tasks.id, createdTask.id))
+      .limit(1);
+
     return reply.code(201).send(row);
   });
 

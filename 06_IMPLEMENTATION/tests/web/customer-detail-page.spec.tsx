@@ -91,6 +91,14 @@ describe("CustomerDetailPage", () => {
         return customer;
       }
 
+      if (path === "/users/sales-options") {
+        return [
+          { id: "sales-1", name: "Rastislav Bušík", role: "sales", active: true },
+          { id: "sales-2", name: "Patrik Bača", role: "sales", active: true },
+          { id: "sales-3", name: "Dušan Gabriška", role: "sales", active: true },
+        ];
+      }
+
       if (path === "/customers/customer-1/contacts") {
         if (init?.method === "POST") {
           const body = JSON.parse(init.body ?? "{}");
@@ -129,14 +137,24 @@ describe("CustomerDetailPage", () => {
     expect(screen.getByText(/Kraj:/)).toHaveTextContent("Nitriansky");
 
     fireEvent.click(screen.getByRole("button", { name: "Upraviť" }));
+    await screen.findByRole("option", { name: "Patrik Bača" });
     fireEvent.change(screen.getByPlaceholderText("Názov firmy"), { target: { value: "Phase5 Customer Updated" } });
     fireEvent.change(screen.getByPlaceholderText(`Plán tržieb ${new Date().getFullYear()} €`), { target: { value: "450000" } });
+    fireEvent.change(screen.getByLabelText("Vlastník zákazníka"), { target: { value: "sales-2" } });
+    fireEvent.click(screen.getByLabelText("Dušan Gabriška"));
     fireEvent.click(screen.getByRole("button", { name: "Uložiť" }));
 
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Phase5 Customer Updated" })).toBeInTheDocument();
     });
     expect(screen.getByText(new RegExp(`Plán ${new Date().getFullYear()}:`))).toHaveTextContent("€ 450 000");
+    expect(apiMock).toHaveBeenCalledWith(
+      "/customers/customer-1",
+      expect.objectContaining({
+        method: "PATCH",
+        body: expect.stringContaining('"ownerId":"sales-2"'),
+      }),
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "+ Nový kontakt" }));
     fireEvent.change(screen.getByPlaceholderText("Meno"), { target: { value: "Nový" } });
@@ -205,6 +223,7 @@ describe("CustomerDetailPage", () => {
 
     apiMock.mockImplementation(async (path: string) => {
       if (path === "/customers/customer-1") return customer;
+      if (path === "/users/sales-options") return [];
       if (path === "/customers/customer-1/contacts") return contacts;
       if (path === "/customers/customer-1/visits") return visits;
       if (path === "/customers/customer-1/opportunities") return opportunities;

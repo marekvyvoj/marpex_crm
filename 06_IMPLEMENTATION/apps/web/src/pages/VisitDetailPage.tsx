@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "../components/AuthProvider.tsx";
 import { api } from "../lib/api.ts";
 
 interface Visit {
@@ -26,6 +28,7 @@ interface Customer {
   id: string;
   name: string;
   segment: string;
+  ownerId?: string | null;
 }
 
 interface Contact {
@@ -35,6 +38,23 @@ interface Contact {
   role: string;
   email: string | null;
   phone: string | null;
+}
+
+interface Task {
+  id: string;
+  title: string;
+  description: string | null;
+  dueDate: string;
+  completedAt: string | null;
+  ownerId: string;
+  ownerName: string | null;
+}
+
+interface UserOption {
+  id: string;
+  name: string;
+  role: "manager" | "sales";
+  active: boolean;
 }
 
 function fmtMoney(value: string) {
@@ -48,7 +68,11 @@ function visitTypeLabel(type: "project" | "service" | "cross_sell") {
 }
 
 export function VisitDetailPage() {
+  const { user } = useAuth();
   const { id } = useParams<{ id: string }>();
+  const qc = useQueryClient();
+  const [showTaskForm, setShowTaskForm] = useState(false);
+  const [taskForm, setTaskForm] = useState({ title: "", dueDate: "", ownerId: "" });
 
   const { data: visit, isLoading } = useQuery<Visit>({
     queryKey: ["visit", id],
@@ -67,7 +91,56 @@ export function VisitDetailPage() {
     enabled: !!visit?.customerId,
   });
 
+  const { data: tasks = [] } = useQuery<Task[]>({
+    queryKey: ["visit-tasks", visit?.customerId],
+    queryFn: () => api(`/tasks?customerId=${visit!.customerId}`),
+    enabled: !!visit?.customerId,
+  });
+
+  const { data: salesUsers = [] } = useQuery<UserOption[]>({
+    queryKey: ["users", "sales-options"],
+    queryFn: () => api("/users/sales-options"),
+    enabled: showTaskForm,
+  });
+
+  const activeSalesUsers = salesUsers;
+  const defaultTaskOwnerId = user?.role === "sales"
+    ? user.id
+    : customer?.ownerId ?? activeSalesUsers[0]?.id ?? "";
+
+  const createTask = useMutation({
+    mutationFn: (body: object) => api("/tasks", { method: "POST", body: JSON.stringify(body) }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["visit-tasks", visit?.customerId] });
+      setShowTaskForm(false);
+      setTaskForm({ title: "", dueDate: "", ownerId: defaultTaskOwnerId });
+    },
+  });
+
+  const completeTask = useMutation({
+    mutationFn: ({ taskId, completed }: { taskId: string; completed: boolean }) =>
+      api(`/tasks/${taskId}/complete`, { method: "PATCH", body: JSON.stringify({ completed }) }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["visit-tasks", visit?.customerId] });
+    },
+  });
+
+  const deleteTask = useMutation({
+    mutationFn: (taskId: string) => api(`/tasks/${taskId}`, { method: "DELETE" }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["visit-tasks", visit?.customerId] });
+    },
+  });
+
   const contact = visit ? contacts.find((item) => item.id === visit.contactId) : undefined;
+
+  function toggleTaskFormPanel() {
+    if (!showTaskForm && !taskForm.ownerId && defaultTaskOwnerId) {
+      setTaskForm((current) => ({ ...current, ownerId: defaultTaskOwnerId }));
+    }
+
+    setShowTaskForm((current) => !current);
+  }
 
   if (isLoading || !visit) {
     return <p className="text-gray-400 text-sm">Načítavam detail návštevy…</p>;
@@ -149,6 +222,91 @@ export function VisitDetailPage() {
           )}
         </section>
       </div>
+
+      <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-700">Úlohy zo stretnutia</h3>
+            <p className="mt-1 text-xs text-gray-500">Nová úloha sa uloží k zákazníkovi a priradený obchodník sa stane jeho riešiteľom.</p>
+          </div>
+          <button type="button" onClick={toggleTaskFormPanel} className="text-xs text-blue-600 hover:underline">
+            {showTaskForm ? "Zavrieť" : "+ Nová úloha"}
+          </button>
+        </div>
+
+        {showTaskForm && (
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              createTask.mutate({
+                ...taskForm,
+                customerId: visit.customerId,
+                ownerId: taskForm.ownerId || defaultTaskOwnerId || undefined,
+              });
+            }}
+            className="mb-4 grid grid-cols-1 gap-2 md:grid-cols-3"
+          >
+            <input
+              required
+              placeholder="Popis úlohy"
+              value={taskForm.title}
+              onChange={(event) => setTaskForm((current) => ({ ...current, title: event.target.value }))}
+              className="border border-gray-300 rounded px-3 py-2 text-sm md:col-span-3"
+            />
+            <input
+              required
+              type="date"
+              value={taskForm.dueDate}
+              onChange={(event) => setTaskForm((current) => ({ ...current, dueDate: event.target.value }))}
+              className="border border-gray-300 rounded px-3 py-2 text-sm"
+              aria-label="Termín úlohy zo stretnutia"
+            />
+            <select
+              required
+              value={taskForm.ownerId || defaultTaskOwnerId}
+              onChange={(event) => setTaskForm((current) => ({ ...current, ownerId: event.target.value }))}
+              className="border border-gray-300 rounded px-3 py-2 text-sm"
+              aria-label="Riešiteľ úlohy zo stretnutia"
+            >
+              <option value="">Vybrať riešiteľa</option>
+              {activeSalesUsers.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}
+            </select>
+            <button type="submit" className="rounded bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700">
+              Uložiť úlohu
+            </button>
+          </form>
+        )}
+
+        {tasks.length === 0 ? (
+          <p className="text-sm text-gray-400">Zatiaľ nie sú evidované žiadne úlohy pre tohto zákazníka.</p>
+        ) : (
+          <ul className="space-y-2">
+            {tasks.map((task) => (
+              <li key={task.id} className={`flex items-start gap-3 rounded-xl border px-3 py-3 ${task.completedAt ? "border-slate-200 bg-slate-50 opacity-60" : new Date(task.dueDate) < new Date() ? "border-red-200 bg-red-50" : "border-gray-200 bg-white"}`}>
+                <input
+                  type="checkbox"
+                  checked={!!task.completedAt}
+                  onChange={(event) => completeTask.mutate({ taskId: task.id, completed: event.target.checked })}
+                  className="mt-1"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className={`text-sm font-medium text-gray-900 ${task.completedAt ? "line-through" : ""}`}>{task.title}</p>
+                  {task.description && <p className="mt-1 text-xs text-gray-500">{task.description}</p>}
+                  <p className="mt-1 text-xs text-gray-400">{task.dueDate}{task.ownerName ? ` • ${task.ownerName}` : ""}</p>
+                </div>
+                <button
+                  type="button"
+                  aria-label={`Zmazať úlohu ${task.title}`}
+                  onClick={() => deleteTask.mutate(task.id)}
+                  className="text-xs text-gray-300 hover:text-red-500"
+                >
+                  ✕
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }
