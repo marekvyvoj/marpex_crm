@@ -83,7 +83,7 @@ export function DashboardPage() {
       {user?.role === "sales" && (
         <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm font-medium text-slate-900">Predvolený pohľad je len na vaše firmy a vaše čísla.</p>
+            <p className="text-sm font-medium text-slate-900">Predvolený pohľad je len na firmy, kde ste vlastník alebo riešiteľ.</p>
             <p className="text-xs text-slate-500">Ak potrebujete, môžete si dočasne zobraziť aj portfólio ostatných obchodníkov.</p>
           </div>
           <ScopeToggle scope={scope} onChange={setScope} mineLabel="Moje portfólio" allLabel="Všetci obchodníci" />

@@ -105,3 +105,8 @@
 
 - Decision: Add a nullable customer-level salesperson assignment and use `scope=mine|all` on customer, dashboard, visit, and opportunity list views so salespeople default to their own portfolio while managers keep the global view.
 - Why: The existing app already scoped some activity data by `ownerId`, but customers had no ownership field and the main list screens defaulted to global data. A shared `mine`/`all` model preserves the user's requested default isolation without hard-blocking cross-sales visibility when someone explicitly asks for it.
+
+### Keep Customer Owner On The Existing DB Column
+
+- Decision: Treat the existing `customers.salesperson_id` column as the internal storage for the customer owner and add a new `customer_resolvers` join table for the many-to-many resolver assignment.
+- Why: The user requested a new owner-plus-resolvers model, but production already contains owner assignments in `salesperson_id`. Reusing that column avoids a risky destructive rename or data backfill during release while still exposing clearer `ownerId` and `ownerName` API fields and enabling multiple resolvers.

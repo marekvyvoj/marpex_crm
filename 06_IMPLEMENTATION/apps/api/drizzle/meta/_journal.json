@@ -64,6 +64,13 @@
       "when": 1760000008000,
       "tag": "0009_customer_salesperson_scope",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1760000009000,
+      "tag": "0010_customer_resolvers",
+      "breakpoints": true
     }
   ]
 }

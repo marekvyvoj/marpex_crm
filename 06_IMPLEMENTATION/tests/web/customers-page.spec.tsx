@@ -56,8 +56,10 @@ describe("CustomersPage", () => {
             name: "Acme a.s.",
             segment: "oem",
             industry: "oem",
-            salespersonId: "sales-1",
-            salespersonName: "Rastislav Bušík",
+            ownerId: "sales-1",
+            ownerName: "Rastislav Bušík",
+            resolverIds: ["sales-2", "sales-3"],
+            resolverNames: ["Patrik Bača", "Dušan Gabriška"],
             ico: "12345678",
             city: "Nitra",
             district: "Nitra-okolie",
@@ -72,8 +74,10 @@ describe("CustomersPage", () => {
             name: "Beta Systems s.r.o.",
             segment: "vyroba",
             industry: "mobile_equipment",
-            salespersonId: null,
-            salespersonName: null,
+            ownerId: null,
+            ownerName: null,
+            resolverIds: [],
+            resolverNames: [],
             ico: "87654321",
             city: "Topoľčany",
             district: "Topoľčany-okolie",
@@ -92,7 +96,8 @@ describe("CustomersPage", () => {
     renderCustomersPage();
 
     expect(await screen.findByText("Acme a.s.")).toBeInTheDocument();
-    expect(screen.getByText("Obchodník")).toBeInTheDocument();
+  expect(screen.getByText("Vlastník")).toBeInTheDocument();
+  expect(screen.getByText("Riešitelia")).toBeInTheDocument();
     expect(screen.getByText("Odvetvie")).toBeInTheDocument();
     expect(screen.getByText("IČO")).toBeInTheDocument();
     expect(screen.getByText("Mesto")).toBeInTheDocument();
@@ -106,7 +111,9 @@ describe("CustomersPage", () => {
     expect(screen.getAllByText("Mobile Equipment").length).toBeGreaterThan(0);
     expect(screen.getByText("12345678")).toBeInTheDocument();
     expect(screen.getByText("Rastislav Bušík")).toBeInTheDocument();
+    expect(screen.getByText("Patrik Bača, Dušan Gabriška")).toBeInTheDocument();
     expect(screen.getByText("Nepriradené")).toBeInTheDocument();
+    expect(screen.getByText("Bez riešiteľov")).toBeInTheDocument();
     expect(screen.getByText("Nitra")).toBeInTheDocument();
     expect(screen.getByText("Nitra-okolie")).toBeInTheDocument();
     expect(screen.getByText("Topoľčany")).toBeInTheDocument();

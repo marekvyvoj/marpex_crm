@@ -9,6 +9,8 @@ import {
   timestamp,
   date,
   pgEnum,
+  primaryKey,
+  index,
 } from "drizzle-orm/pg-core";
 
 // ─── Enums ───────────────────────────────────────────────
@@ -90,6 +92,16 @@ export const customers = pgTable("customers", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const customerResolvers = pgTable("customer_resolvers", {
+  customerId: uuid("customer_id").notNull().references(() => customers.id),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.customerId, table.userId], name: "customer_resolvers_pkey" }),
+  customerIdIdx: index("customer_resolvers_customer_id_idx").on(table.customerId),
+  userIdIdx: index("customer_resolvers_user_id_idx").on(table.userId),
+}));
 
 // ─── Contacts ────────────────────────────────────────────
 

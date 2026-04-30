@@ -22,8 +22,10 @@ interface Customer {
   annualRevenuePlan: string | null;
   annualRevenuePlanYear: number | null;
   shareOfWallet: number | null;
-  salespersonId: string | null;
-  salespersonName: string | null;
+  ownerId: string | null;
+  ownerName: string | null;
+  resolverIds: string[];
+  resolverNames: string[];
   createdAt: string;
 }
 
@@ -125,6 +127,10 @@ function formatIndustry(value: string | null) {
   return value ? INDUSTRY_LABELS[value] ?? value : "–";
 }
 
+function formatResolverNames(resolverNames: string[]) {
+  return resolverNames.length > 0 ? resolverNames.join(", ") : "Bez riešiteľov";
+}
+
 function getYearProgress(date: Date) {
   const year = date.getFullYear();
   const start = new Date(year, 0, 0);
@@ -158,6 +164,8 @@ export function CustomerDetailPage() {
   const activeSalesUsers = salesUsers.filter((candidate) => candidate.role === "sales" && candidate.active);
 
   const [editForm, setEditForm] = useState<Partial<Customer>>({});
+  const selectedOwnerId = String((editForm as { ownerId?: string }).ownerId ?? "");
+  const availableResolverUsers = activeSalesUsers.filter((candidate) => candidate.id !== selectedOwnerId);
   const updateCustomer = useMutation({
     mutationFn: (body: object) =>
       api(`/customers/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
@@ -269,7 +277,8 @@ export function CustomerDetailPage() {
       currentRevenue: customer!.currentRevenue ?? undefined,
       annualRevenuePlan: customer!.annualRevenuePlan ?? undefined,
       annualRevenuePlanYear: customer!.annualRevenuePlanYear ?? undefined,
-      salespersonId: customer!.salespersonId ?? undefined,
+      ownerId: customer!.ownerId ?? undefined,
+      resolverIds: [...customer!.resolverIds],
     } as any);
     setEditMode(true);
   }
@@ -299,10 +308,33 @@ export function CustomerDetailPage() {
         body.annualRevenuePlanYear = currentYear;
       }
     }
-    if (user?.role === "manager" && (editForm as any).salespersonId !== undefined) {
-      body.salespersonId = (editForm as any).salespersonId || null;
+    if (user?.role === "manager") {
+      if ((editForm as any).ownerId !== undefined) {
+        body.ownerId = (editForm as any).ownerId || null;
+      }
+
+      if ((editForm as any).resolverIds !== undefined) {
+        body.resolverIds = ((editForm as any).resolverIds as string[]).filter((resolverId) => resolverId !== (editForm as any).ownerId);
+      }
     }
     updateCustomer.mutate(body);
+  }
+
+  function toggleResolver(resolverId: string, checked: boolean) {
+    setEditForm((current) => {
+      const currentResolverIds = new Set(((current as { resolverIds?: string[] }).resolverIds ?? []));
+
+      if (checked) {
+        currentResolverIds.add(resolverId);
+      } else {
+        currentResolverIds.delete(resolverId);
+      }
+
+      return {
+        ...current,
+        resolverIds: [...currentResolverIds],
+      } as Partial<Customer>;
+    });
   }
 
   return (
@@ -341,12 +373,34 @@ export function CustomerDetailPage() {
           {user?.role === "manager" && (
             <select
               className="border border-gray-300 rounded px-3 py-2 text-sm"
-              value={(editForm as any).salespersonId ?? ""}
-              onChange={(e) => setEditForm((f) => ({ ...f, salespersonId: e.target.value || undefined }))}
+              value={(editForm as any).ownerId ?? ""}
+              onChange={(e) => setEditForm((f) => ({ ...f, ownerId: e.target.value || undefined }))}
             >
-              <option value="">Obchodník – nepriradené</option>
+              <option value="">Vlastník – nepriradené</option>
               {activeSalesUsers.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}
             </select>
+          )}
+          {user?.role === "manager" && (
+            <div className="md:col-span-4 rounded-lg border border-gray-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
+              <p className="font-medium text-slate-900">Riešitelia</p>
+              <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+                {availableResolverUsers.map((candidate) => {
+                  const checked = ((editForm as any).resolverIds ?? []).includes(candidate.id);
+
+                  return (
+                    <label key={candidate.id} className="flex items-center gap-2 rounded border border-slate-200 bg-white px-3 py-2">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(event) => toggleResolver(candidate.id, event.target.checked)}
+                      />
+                      <span>{candidate.name}</span>
+                    </label>
+                  );
+                })}
+              </div>
+              {availableResolverUsers.length === 0 && <p className="mt-2 text-xs text-slate-500">Žiadni ďalší obchodníci na priradenie.</p>}
+            </div>
           )}
           <input
             placeholder="IČO"
@@ -424,7 +478,8 @@ export function CustomerDetailPage() {
             <div className="flex flex-wrap gap-4 text-sm text-gray-600">
               <span>Odvetvie: <strong>{formatIndustry(customer.industry)}</strong></span>
               <span>Segment: <strong>{customer.segment}</strong></span>
-              <span>Obchodník: <strong>{customer.salespersonName || "Nepriradené"}</strong></span>
+              <span>Vlastník: <strong>{customer.ownerName || "Nepriradené"}</strong></span>
+              <span>Riešitelia: <strong>{formatResolverNames(customer.resolverNames)}</strong></span>
               {currentYearPlan && <span>Plán {currentYear}: <strong>{fmt(String(currentYearPlan))}</strong></span>}
               {customer.shareOfWallet != null && <span>SoW: <strong>{customer.shareOfWallet} %</strong></span>}
             </div>

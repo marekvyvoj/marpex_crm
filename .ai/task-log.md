@@ -128,6 +128,17 @@
 - Railway web deployment `769e9f6b-3f6a-4946-a542-35c6815dca33` reached `SUCCESS` on the nginx runtime.
 - Live smoke verification passed after deploy: login with `Obchodnik1@marpex.sk / sales123` reached `/dashboard`, same-origin `GET /api/auth/me` returned `200`, and web logs showed successful `/api/auth/me` and `/api/dashboard` traffic from the web origin.
 
+## 2026-04-30
+
+### Customer Owner And Resolver Model
+
+- Kept `customers.salesperson_id` as the internal owner field, added the new `customer_resolvers` join table, and exposed the clearer `ownerId` or `ownerName` plus `resolverIds` or `resolverNames` customer contract across domain, API, and web.
+- Updated the customers list UI to rename `Obchodník` to `Vlastník`, add `Riešitelia`, and allow manager-side owner or resolver assignment in both create and detail edit flows.
+- Updated the dashboard so salesperson KPIs and top deals use firms where the user is the owner or one of the resolvers, while the planner preview stays tied to the salesperson's own visits and opportunities.
+- Added focused web regression coverage for customers list, customer detail, and dashboard; `cd 06_IMPLEMENTATION && npx vitest run tests/web/customers-page.spec.tsx tests/web/customer-detail-page.spec.tsx tests/web/dashboard-page.spec.tsx --config vitest.phase5.config.ts` passed.
+- Rebuilt the domain package and confirmed `cd 06_IMPLEMENTATION && npm -w packages/domain run build && npm run typecheck` passed.
+- Updated focused integration coverage in `07_TEST_SUITE/integration/api.spec.ts`, but DB-backed execution is currently blocked by `ECONNREFUSED` because PostgreSQL is not reachable on `localhost:5432` in this shell.
+
 ### Salesperson Ownership And Default Mine Scope
 
 - Added customer-level `salespersonId` in the shared domain schema, API DB schema, and forward-safe migration `0009_customer_salesperson_scope.sql`.

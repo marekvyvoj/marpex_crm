@@ -3,11 +3,12 @@
 ## Active Questions
 
 - Current-year customer plan is stored directly on the customer record (`annualRevenuePlan`, `annualRevenuePlanYear`). If the product later needs historical multi-year plans or ABRA-sourced plan import, decide whether to replace this with a dedicated yearly plan table.
-- Existing customers now support `salespersonId`, but the real business mapping of current firms to the five requested named salespeople still needs a manual assignment or a later approved bulk-import strategy.
+- Existing customers now support one owner plus multiple resolvers, but the real business mapping of current firms to concrete owner or resolver assignments still needs a manual assignment or a later approved bulk-import strategy.
 - Existing live demo data still need a one-time owner rebalance from inside the Railway `marpex_crm` service environment, because local `railway run` uses a `postgres.railway.internal` hostname that is not reachable from the workstation shell.
 - Safari compatibility is now build-hardened with legacy bundles, but an actual deployed Safari or iOS Safari smoke run is still pending.
 - Consider whether the duplicated workbook set under `06_IMPLEMENTATION/SourceData` should remain the long-term packaging strategy, or whether the Railway API service should later switch to a repo-root build context or an explicit import storage approach.
-- Local DB-backed verification for the new salesperson ownership slice is still blocked until PostgreSQL is reachable on `localhost:5432`.
+- Local DB-backed verification for the new owner or resolver customer slice is still blocked until PostgreSQL is reachable on `localhost:5432`.
+- Production release for the current slice requires applying migration `0010_customer_resolvers` before resolver-based customer and dashboard views are relied on in Railway.
 
 ## Resolved 2026-04-26
 

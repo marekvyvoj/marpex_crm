@@ -33,21 +33,32 @@ export async function createTestCustomer(overrides: Partial<{
   name: string;
   segment: "oem" | "vyroba" | "integrator" | "servis" | "other";
   currentRevenue: string;
-  salespersonId: string | null;
+  ownerId: string | null;
+  resolverIds: string[];
 }> = {}) {
-  const { db, customers } = await getDbContext();
+  const { db, customers, customerResolvers } = await getDbContext();
   const suffix = randomUUID().slice(0, 8);
-  const [customer] = await db
-    .insert(customers)
-    .values({
-      name: overrides.name ?? `Phase5 Customer ${suffix}`,
-      segment: overrides.segment ?? "vyroba",
-      currentRevenue: overrides.currentRevenue ?? null,
-      salespersonId: overrides.salespersonId ?? null,
-      sourceSystem: TEST_SOURCE_SYSTEM,
-      sourceRecordId: suffix,
-    })
-    .returning();
+  const [customer] = await db.transaction(async (tx) => {
+    const [createdCustomer] = await tx
+      .insert(customers)
+      .values({
+        name: overrides.name ?? `Phase5 Customer ${suffix}`,
+        segment: overrides.segment ?? "vyroba",
+        currentRevenue: overrides.currentRevenue ?? null,
+        salespersonId: overrides.ownerId ?? null,
+        sourceSystem: TEST_SOURCE_SYSTEM,
+        sourceRecordId: suffix,
+      })
+      .returning();
+
+    if ((overrides.resolverIds ?? []).length > 0) {
+      await tx.insert(customerResolvers).values(
+        (overrides.resolverIds ?? []).map((resolverId) => ({ customerId: createdCustomer.id, userId: resolverId })),
+      );
+    }
+
+    return [createdCustomer];
+  });
 
   return customer;
 }
@@ -167,6 +178,7 @@ export async function cleanupTestData() {
     abraRevenues,
     auditLog,
     contacts,
+    customerResolvers,
     customers,
     db,
     opportunities,
@@ -224,6 +236,7 @@ export async function cleanupTestData() {
   }
 
   if (customerIds.length > 0) {
+    await db.delete(customerResolvers).where(inArray(customerResolvers.customerId, customerIds));
     await db.delete(abraRevenues).where(inArray(abraRevenues.customerId, customerIds));
   }
 

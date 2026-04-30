@@ -1,9 +1,10 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { customers, opportunities, visits } from "../db/schema.js";
 import { PIPELINE_STAGES } from "@marpex/domain";
+import { loadAccessibleCustomerIds } from "../lib/customer-access.js";
 import { getOptionalNumberEnv } from "../lib/env.js";
 import { sendError } from "../lib/http.js";
 import { syncStagnantOpportunities } from "../lib/stagnation.js";
@@ -38,25 +39,70 @@ type PlannerItem = {
   value: number | null;
 };
 
-async function loadScopedDashboardRows(userRole: string, userId: string, scope?: ListScope) {
+async function loadCustomerRowsByIds(customerIds: string[]) {
+  if (customerIds.length === 0) {
+    return [] as CustomerRow[];
+  }
+
+  return db
+    .select({ id: customers.id, name: customers.name, currentRevenue: customers.currentRevenue })
+    .from(customers)
+    .where(inArray(customers.id, customerIds));
+}
+
+async function loadPortfolioDashboardRows(userRole: string, userId: string, scope?: ListScope) {
   const showAll = shouldUseAllScope(userRole, scope);
 
-  const oppRows = showAll
-    ? await db.select().from(opportunities)
-    : await db.select().from(opportunities).where(eq(opportunities.ownerId, userId));
-
-  const visitRows = showAll
-    ? await db.select().from(visits)
-    : await db.select().from(visits).where(eq(visits.ownerId, userId));
-
-  const customerRows = showAll
-    ? await db
+  if (showAll) {
+    const [oppRows, visitRows, customerRows] = await Promise.all([
+      db.select().from(opportunities),
+      db.select().from(visits),
+      db
         .select({ id: customers.id, name: customers.name, currentRevenue: customers.currentRevenue })
-        .from(customers)
-    : await db
-        .select({ id: customers.id, name: customers.name, currentRevenue: customers.currentRevenue })
-        .from(customers)
-        .where(eq(customers.salespersonId, userId));
+        .from(customers),
+    ]);
+
+    return {
+      oppRows,
+      visitRows,
+      customerRows,
+    };
+  }
+
+  const accessibleCustomerIds = await loadAccessibleCustomerIds(userId);
+
+  if (accessibleCustomerIds.length === 0) {
+    return {
+      oppRows: [] as OpportunityRow[],
+      visitRows: [] as VisitRow[],
+      customerRows: [] as CustomerRow[],
+    };
+  }
+
+  const [oppRows, visitRows, customerRows] = await Promise.all([
+    db.select().from(opportunities).where(inArray(opportunities.customerId, accessibleCustomerIds)),
+    db.select().from(visits).where(inArray(visits.customerId, accessibleCustomerIds)),
+    loadCustomerRowsByIds(accessibleCustomerIds),
+  ]);
+
+  return {
+    oppRows,
+    visitRows,
+    customerRows,
+  };
+}
+
+async function loadPlannerRows(userId: string) {
+  const [oppRows, visitRows] = await Promise.all([
+    db.select().from(opportunities).where(eq(opportunities.ownerId, userId)),
+    db.select().from(visits).where(eq(visits.ownerId, userId)),
+  ]);
+
+  const customerIds = [...new Set([
+    ...oppRows.map((opportunity) => opportunity.customerId),
+    ...visitRows.map((visit) => visit.customerId),
+  ])];
+  const customerRows = await loadCustomerRowsByIds(customerIds);
 
   return {
     oppRows,
@@ -197,7 +243,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     const today = new Date();
     const todayKey = toDateKey(today);
     const windowEndKey = toDateKey(addDays(today, 7));
-    const { oppRows, visitRows, customerRows } = await loadScopedDashboardRows(userRole, userId);
+    const { oppRows, visitRows, customerRows } = await loadPlannerRows(userId);
     return buildPlannerPayload(oppRows, visitRows, customerRows, todayKey, windowEndKey);
   });
 
@@ -208,18 +254,14 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
 
     await syncStagnantOpportunities();
 
-    const { oppRows, visitRows, customerRows } = await loadScopedDashboardRows(userRole, userId, scope);
+    const { oppRows, visitRows, customerRows } = await loadPortfolioDashboardRows(userRole, userId, scope);
     const today = new Date();
     const todayKey = toDateKey(today);
     let plannerPreview = null;
 
     if (userRole === "sales") {
-      if (scope === "all") {
-        const ownRows = await loadScopedDashboardRows(userRole, userId, "mine");
-        plannerPreview = buildPlannerPayload(ownRows.oppRows, ownRows.visitRows, ownRows.customerRows, todayKey, toDateKey(addDays(today, 7)));
-      } else {
-        plannerPreview = buildPlannerPayload(oppRows, visitRows, customerRows, todayKey, toDateKey(addDays(today, 7)));
-      }
+      const ownRows = await loadPlannerRows(userId);
+      plannerPreview = buildPlannerPayload(ownRows.oppRows, ownRows.visitRows, ownRows.customerRows, todayKey, toDateKey(addDays(today, 7)));
     }
 
     const open = oppRows.filter((o) => o.stage !== "won" && o.stage !== "lost");

@@ -1,10 +1,11 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
-import { eq, desc, ilike, and, inArray, sql, type SQL } from "drizzle-orm";
+import { eq, desc, ilike, and, inArray, or, sql, type SQL } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { customers, contacts, visits, opportunities, abraRevenues, abraQuotes, abraOrders, users } from "../db/schema.js";
+import { customers, customerResolvers, contacts, visits, opportunities, abraRevenues, abraQuotes, abraOrders, users } from "../db/schema.js";
 import { customerSchema, contactSchema, customerSegments, customerIndustries } from "@marpex/domain";
 import { writeAudit } from "../lib/audit.js";
+import { loadAccessibleCustomerIds } from "../lib/customer-access.js";
 import { sendError } from "../lib/http.js";
 import { paginationQuerySchema, resolvePagination, setPaginationHeaders } from "../lib/pagination.js";
 import { listScopeSchema, shouldUseAllScope } from "../lib/view-scope.js";
@@ -37,35 +38,54 @@ const customerSelectFields = {
   annualRevenuePlan: customers.annualRevenuePlan,
   annualRevenuePlanYear: customers.annualRevenuePlanYear,
   shareOfWallet: customers.shareOfWallet,
-  salespersonId: customers.salespersonId,
-  salespersonName: users.name,
+  ownerId: customers.salespersonId,
+  ownerName: users.name,
   sourceSystem: customers.sourceSystem,
   sourceRecordId: customers.sourceRecordId,
   createdAt: customers.createdAt,
   updatedAt: customers.updatedAt,
 } as const;
 
-async function withRevenueSummary<T extends { id: string; currentRevenue?: string | null }>(rows: T[]) {
+async function withCustomerDecorations<T extends { id: string; currentRevenue?: string | null }>(rows: T[]) {
   if (rows.length === 0) {
-    return [] as Array<T & { currentYearRevenue: string | null; previousYearRevenue: string | null }>;
+    return [] as Array<T & {
+      currentYearRevenue: string | null;
+      previousYearRevenue: string | null;
+      resolverIds: string[];
+      resolverNames: string[];
+    }>;
   }
 
   const currentYear = new Date().getFullYear();
-  const revenueRows = await db
-    .select({
-      customerId: abraRevenues.customerId,
-      year: abraRevenues.year,
-      totalAmount: abraRevenues.totalAmount,
-    })
-    .from(abraRevenues)
-    .where(
-      and(
-        inArray(abraRevenues.customerId, rows.map((row) => row.id)),
-        inArray(abraRevenues.year, [currentYear, currentYear - 1]),
+  const customerIds = rows.map((row) => row.id);
+  const [revenueRows, resolverRows] = await Promise.all([
+    db
+      .select({
+        customerId: abraRevenues.customerId,
+        year: abraRevenues.year,
+        totalAmount: abraRevenues.totalAmount,
+      })
+      .from(abraRevenues)
+      .where(
+        and(
+          inArray(abraRevenues.customerId, customerIds),
+          inArray(abraRevenues.year, [currentYear, currentYear - 1]),
+        ),
       ),
-    );
+    db
+      .select({
+        customerId: customerResolvers.customerId,
+        userId: customerResolvers.userId,
+        userName: users.name,
+      })
+      .from(customerResolvers)
+      .innerJoin(users, eq(customerResolvers.userId, users.id))
+      .where(inArray(customerResolvers.customerId, customerIds))
+      .orderBy(users.name),
+  ]);
 
   const revenuesByCustomer = new Map<string, { currentYearRevenue: string | null; previousYearRevenue: string | null }>();
+  const resolversByCustomer = new Map<string, { resolverIds: string[]; resolverNames: string[] }>();
 
   for (const revenue of revenueRows) {
     const summary = revenuesByCustomer.get(revenue.customerId) ?? {
@@ -83,13 +103,70 @@ async function withRevenueSummary<T extends { id: string; currentRevenue?: strin
     revenuesByCustomer.set(revenue.customerId, summary);
   }
 
+  for (const resolver of resolverRows) {
+    const summary = resolversByCustomer.get(resolver.customerId) ?? {
+      resolverIds: [],
+      resolverNames: [],
+    };
+
+    summary.resolverIds.push(resolver.userId);
+    summary.resolverNames.push(resolver.userName);
+    resolversByCustomer.set(resolver.customerId, summary);
+  }
+
   return rows.map((row) => ({
     ...row,
     ...(revenuesByCustomer.get(row.id) ?? {
       currentYearRevenue: row.currentRevenue ?? null,
       previousYearRevenue: null,
     }),
+    ...(resolversByCustomer.get(row.id) ?? {
+      resolverIds: [],
+      resolverNames: [],
+    }),
   }));
+}
+
+function normalizeResolverIds(resolverIds: string[] | undefined) {
+  return [...new Set((resolverIds ?? []).filter((resolverId) => resolverId.length > 0))];
+}
+
+async function loadActiveSalesIds(candidateIds: string[]) {
+  if (candidateIds.length === 0) {
+    return new Set<string>();
+  }
+
+  const rows = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(and(inArray(users.id, candidateIds), eq(users.role, "sales"), eq(users.active, true)));
+
+  return new Set(rows.map((row) => row.id));
+}
+
+async function loadResolverIdsForCustomer(customerId: string) {
+  const rows = await db
+    .select({ userId: customerResolvers.userId })
+    .from(customerResolvers)
+    .where(eq(customerResolvers.customerId, customerId));
+
+  return rows.map((row) => row.userId);
+}
+
+async function loadCustomerById(customerId: string) {
+  const [row] = await db
+    .select(customerSelectFields)
+    .from(customers)
+    .leftJoin(users, eq(customers.salespersonId, users.id))
+    .where(eq(customers.id, customerId))
+    .limit(1);
+
+  if (!row) {
+    return null;
+  }
+
+  const [customer] = await withCustomerDecorations([row]);
+  return customer;
 }
 
 export const customerRoutes: FastifyPluginAsync = async (app) => {
@@ -102,7 +179,15 @@ export const customerRoutes: FastifyPluginAsync = async (app) => {
     if (q) conditions.push(ilike(customers.name, `%${q}%`));
     if (segment) conditions.push(eq(customers.segment, segment));
     if (industry) conditions.push(eq(customers.industry, industry));
-    if (!showAll) conditions.push(eq(customers.salespersonId, request.userId!));
+    if (!showAll) {
+      const accessibleCustomerIds = await loadAccessibleCustomerIds(request.userId!);
+
+      if (accessibleCustomerIds.length === 0) {
+        conditions.push(eq(customers.salespersonId, request.userId!));
+      } else {
+        conditions.push(or(eq(customers.salespersonId, request.userId!), inArray(customers.id, accessibleCustomerIds))!);
+      }
+    }
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
     const pagination = resolvePagination(request.query);
@@ -114,7 +199,7 @@ export const customerRoutes: FastifyPluginAsync = async (app) => {
         .leftJoin(users, eq(customers.salespersonId, users.id))
         .where(where)
         .orderBy(customers.name);
-      return withRevenueSummary(rows);
+      return withCustomerDecorations(rows);
     }
 
     const [{ total }] = await db
@@ -133,21 +218,15 @@ export const customerRoutes: FastifyPluginAsync = async (app) => {
 
     setPaginationHeaders(reply, total, pagination);
 
-    return withRevenueSummary(rows);
+    return withCustomerDecorations(rows);
   });
 
   // Get single customer
   app.get<{ Params: { id: string } }>("/:id", async (request, reply) => {
     z.string().uuid().parse(request.params.id);
-    const [row] = await db
-      .select(customerSelectFields)
-      .from(customers)
-      .leftJoin(users, eq(customers.salespersonId, users.id))
-      .where(eq(customers.id, request.params.id))
-      .limit(1);
+    const customer = await loadCustomerById(request.params.id);
 
-    if (!row) return sendError(reply, 404, "NOT_FOUND", "Not found");
-    const [customer] = await withRevenueSummary([row]);
+    if (!customer) return sendError(reply, 404, "NOT_FOUND", "Not found");
     return customer;
   });
 
@@ -156,57 +235,75 @@ export const customerRoutes: FastifyPluginAsync = async (app) => {
     const body = customerSchema.parse(request.body);
     const userId = request.userId!;
     const userRole = request.userRole!;
-    let salespersonId: string | null = userRole === "sales" ? userId : null;
+    let ownerId: string | null = userRole === "sales" ? userId : null;
 
-    if (body.salespersonId !== undefined) {
-      if (body.salespersonId === null) {
+    if (body.ownerId !== undefined) {
+      if (body.ownerId === null) {
         if (userRole !== "manager") {
           return sendError(reply, 403, "FORBIDDEN", "Obchodník môže priradiť zákazníka len sebe.");
         }
 
-        salespersonId = null;
+        ownerId = null;
       } else {
-        if (userRole !== "manager" && body.salespersonId !== userId) {
+        if (userRole !== "manager" && body.ownerId !== userId) {
           return sendError(reply, 403, "FORBIDDEN", "Obchodník môže priradiť zákazníka len sebe.");
         }
 
-        const [salesperson] = await db
-          .select({ id: users.id })
-          .from(users)
-          .where(and(eq(users.id, body.salespersonId), eq(users.role, "sales"), eq(users.active, true)))
-          .limit(1);
-
-        if (!salesperson) {
-          return sendError(reply, 400, "INVALID_SALESPERSON", "Vybraný obchodník neexistuje alebo nie je aktívny.");
-        }
-
-        salespersonId = salesperson.id;
+        ownerId = body.ownerId;
       }
     }
 
-    const [row] = await db
-      .insert(customers)
-      .values({
-        name: body.name,
-        segment: body.segment,
-        industry: body.industry ?? null,
-        ico: body.ico ?? null,
-        dic: body.dic ?? null,
-        icDph: body.icDph ?? null,
-        address: body.address ?? null,
-        city: body.city ?? null,
-        postalCode: body.postalCode ?? null,
-        district: body.district ?? null,
-        region: body.region ?? null,
-        currentRevenue: body.currentRevenue?.toString() ?? null,
-        annualRevenuePlan: body.annualRevenuePlan != null ? body.annualRevenuePlan.toString() : null,
-        annualRevenuePlanYear: body.annualRevenuePlanYear ?? null,
-        shareOfWallet: body.shareOfWallet ?? null,
-        salespersonId,
-      })
-      .returning();
-    await writeAudit({ userId, action: "customer.create", entityType: "customer", entityId: row.id, payload: { name: row.name, segment: row.segment, salespersonId } });
-    return reply.code(201).send(row);
+    if (userRole !== "manager" && body.resolverIds !== undefined) {
+      return sendError(reply, 403, "FORBIDDEN", "Obchodník nemôže meniť riešiteľov.");
+    }
+
+    const resolverIds = normalizeResolverIds(userRole === "manager" ? body.resolverIds : undefined).filter((resolverId) => resolverId !== ownerId);
+    const candidateIds = [...new Set([ownerId, ...resolverIds].filter((candidateId): candidateId is string => Boolean(candidateId)))];
+    const activeSalesIds = await loadActiveSalesIds(candidateIds);
+
+    if (ownerId && !activeSalesIds.has(ownerId)) {
+      return sendError(reply, 400, "INVALID_OWNER", "Vybraný vlastník neexistuje alebo nie je aktívny.");
+    }
+
+    if (resolverIds.some((resolverId) => !activeSalesIds.has(resolverId))) {
+      return sendError(reply, 400, "INVALID_RESOLVER", "Aspoň jeden vybraný riešiteľ neexistuje alebo nie je aktívny.");
+    }
+
+    const [row] = await db.transaction(async (tx) => {
+      const [createdCustomer] = await tx
+        .insert(customers)
+        .values({
+          name: body.name,
+          segment: body.segment,
+          industry: body.industry ?? null,
+          ico: body.ico ?? null,
+          dic: body.dic ?? null,
+          icDph: body.icDph ?? null,
+          address: body.address ?? null,
+          city: body.city ?? null,
+          postalCode: body.postalCode ?? null,
+          district: body.district ?? null,
+          region: body.region ?? null,
+          currentRevenue: body.currentRevenue?.toString() ?? null,
+          annualRevenuePlan: body.annualRevenuePlan != null ? body.annualRevenuePlan.toString() : null,
+          annualRevenuePlanYear: body.annualRevenuePlanYear ?? null,
+          shareOfWallet: body.shareOfWallet ?? null,
+          salespersonId: ownerId,
+        })
+        .returning({ id: customers.id, name: customers.name, segment: customers.segment });
+
+      if (resolverIds.length > 0) {
+        await tx.insert(customerResolvers).values(
+          resolverIds.map((resolverId) => ({ customerId: createdCustomer.id, userId: resolverId })),
+        );
+      }
+
+      return [createdCustomer];
+    });
+
+    await writeAudit({ userId, action: "customer.create", entityType: "customer", entityId: row.id, payload: { name: row.name, segment: row.segment, ownerId, resolverIds } });
+    const customer = await loadCustomerById(row.id);
+    return reply.code(201).send(customer);
   });
 
   // Get contacts for a customer
@@ -236,6 +333,17 @@ export const customerRoutes: FastifyPluginAsync = async (app) => {
     const body = customerSchema.partial().parse(request.body);
     const userId = request.userId!;
     const userRole = request.userRole!;
+    const [existingCustomer] = await db
+      .select({ id: customers.id, ownerId: customers.salespersonId })
+      .from(customers)
+      .where(eq(customers.id, request.params.id))
+      .limit(1);
+
+    if (!existingCustomer) return sendError(reply, 404, "NOT_FOUND", "Not found");
+
+    const currentResolverIds = await loadResolverIdsForCustomer(request.params.id);
+    let nextOwnerId = existingCustomer.ownerId;
+    let nextResolverIds = currentResolverIds;
     const updateData: Record<string, unknown> = { updatedAt: new Date() };
     if (body.name !== undefined) updateData.name = body.name;
     if (body.segment !== undefined) updateData.segment = body.segment;
@@ -252,39 +360,65 @@ export const customerRoutes: FastifyPluginAsync = async (app) => {
     if (body.annualRevenuePlan !== undefined) updateData.annualRevenuePlan = body.annualRevenuePlan != null ? body.annualRevenuePlan.toString() : null;
     if (body.annualRevenuePlanYear !== undefined) updateData.annualRevenuePlanYear = body.annualRevenuePlanYear;
     if (body.shareOfWallet !== undefined) updateData.shareOfWallet = body.shareOfWallet;
-    if (body.salespersonId !== undefined) {
-      if (body.salespersonId === null) {
+    if (body.ownerId !== undefined) {
+      if (body.ownerId === null) {
         if (userRole !== "manager") {
           return sendError(reply, 403, "FORBIDDEN", "Obchodník môže zmeniť priradenie len na seba.");
         }
 
-        updateData.salespersonId = null;
+        nextOwnerId = null;
       } else {
-        if (userRole !== "manager" && body.salespersonId !== userId) {
+        if (userRole !== "manager" && body.ownerId !== userId) {
           return sendError(reply, 403, "FORBIDDEN", "Obchodník môže zmeniť priradenie len na seba.");
         }
 
-        const [salesperson] = await db
-          .select({ id: users.id })
-          .from(users)
-          .where(and(eq(users.id, body.salespersonId), eq(users.role, "sales"), eq(users.active, true)))
-          .limit(1);
-
-        if (!salesperson) {
-          return sendError(reply, 400, "INVALID_SALESPERSON", "Vybraný obchodník neexistuje alebo nie je aktívny.");
-        }
-
-        updateData.salespersonId = salesperson.id;
+        nextOwnerId = body.ownerId;
       }
     }
 
-    const [row] = await db
-      .update(customers)
-      .set(updateData)
-      .where(eq(customers.id, request.params.id))
-      .returning();
-    if (!row) return sendError(reply, 404, "NOT_FOUND", "Not found");
-    return row;
+    if (body.resolverIds !== undefined) {
+      if (userRole !== "manager") {
+        return sendError(reply, 403, "FORBIDDEN", "Obchodník nemôže meniť riešiteľov.");
+      }
+
+      nextResolverIds = normalizeResolverIds(body.resolverIds);
+    }
+
+    nextResolverIds = nextResolverIds.filter((resolverId) => resolverId !== nextOwnerId);
+    const candidateIds = [...new Set([nextOwnerId, ...nextResolverIds].filter((candidateId): candidateId is string => Boolean(candidateId)))];
+    const activeSalesIds = await loadActiveSalesIds(candidateIds);
+
+    if (nextOwnerId && !activeSalesIds.has(nextOwnerId)) {
+      return sendError(reply, 400, "INVALID_OWNER", "Vybraný vlastník neexistuje alebo nie je aktívny.");
+    }
+
+    if (nextResolverIds.some((resolverId) => !activeSalesIds.has(resolverId))) {
+      return sendError(reply, 400, "INVALID_RESOLVER", "Aspoň jeden vybraný riešiteľ neexistuje alebo nie je aktívny.");
+    }
+
+    if (body.ownerId !== undefined) {
+      updateData.salespersonId = nextOwnerId;
+    }
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(customers)
+        .set(updateData)
+        .where(eq(customers.id, request.params.id));
+
+      if (body.ownerId !== undefined || body.resolverIds !== undefined) {
+        await tx.delete(customerResolvers).where(eq(customerResolvers.customerId, request.params.id));
+
+        if (nextResolverIds.length > 0) {
+          await tx.insert(customerResolvers).values(
+            nextResolverIds.map((resolverId) => ({ customerId: request.params.id, userId: resolverId })),
+          );
+        }
+      }
+    });
+
+    const customer = await loadCustomerById(request.params.id);
+    return customer;
   });
 
   // Visits for a customer

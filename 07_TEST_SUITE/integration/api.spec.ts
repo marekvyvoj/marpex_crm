@@ -129,7 +129,8 @@ describe("API integration", () => {
   it("returns dashboard scoped to the logged-in salesperson", async () => {
     const sales = await getUserByEmail("obchodnik1@marpex.sk");
     const manager = await getUserByEmail("manager@marpex.sk");
-    const customer = await createTestCustomer({ name: "Phase5 Sales Dashboard", salespersonId: sales.id });
+    const otherSales = await getUserByEmail("obchodnik2@marpex.sk");
+    const customer = await createTestCustomer({ name: "Phase5 Sales Dashboard", ownerId: otherSales.id, resolverIds: [sales.id] });
     await createTestOpportunity({
       customerId: customer.id,
       ownerId: sales.id,
@@ -158,18 +159,22 @@ describe("API integration", () => {
 
     expect(response.statusCode).toBe(200);
     const body = response.json();
-    expect(body.openCount).toBe(1);
-    expect(body.top10).toHaveLength(1);
-    expect(body.top10[0].title).toBe("Sales Owned Opp");
+    expect(body.openCount).toBe(2);
+    expect(body.top10).toHaveLength(2);
+    expect(body.top10.map((item: { title: string }) => item.title)).toEqual([
+      "Manager Only Opp",
+      "Sales Owned Opp",
+    ]);
   });
 
-  it("returns customers scoped to the assigned salesperson by default and expands with scope=all", async () => {
+  it("returns customers scoped to the owner or resolver by default and expands with scope=all", async () => {
     const sales = await getUserByEmail("obchodnik1@marpex.sk");
     const otherSales = await getUserByEmail("obchodnik2@marpex.sk");
 
-    await createTestCustomer({ name: "Phase5 Scoped Customer", salespersonId: sales.id });
-    await createTestCustomer({ name: "Phase5 Hidden Customer", salespersonId: otherSales.id });
-    await createTestCustomer({ name: "Phase5 Unassigned Customer", salespersonId: null });
+    await createTestCustomer({ name: "Phase5 Owned Customer", ownerId: sales.id });
+    await createTestCustomer({ name: "Phase5 Resolver Customer", ownerId: otherSales.id, resolverIds: [sales.id] });
+    await createTestCustomer({ name: "Phase5 Hidden Customer", ownerId: otherSales.id });
+    await createTestCustomer({ name: "Phase5 Unassigned Customer", ownerId: null });
 
     const { cookie, response: loginResponse } = await loginAs(app, "obchodnik1@marpex.sk", "sales123", "127.0.0.96");
     expect(loginResponse.statusCode).toBe(200);
@@ -183,7 +188,8 @@ describe("API integration", () => {
     expect(scopedResponse.statusCode).toBe(200);
     const scopedCustomers = scopedResponse.json();
 
-    expect(scopedCustomers.some((customer: { name: string }) => customer.name === "Phase5 Scoped Customer")).toBe(true);
+    expect(scopedCustomers.some((customer: { name: string }) => customer.name === "Phase5 Owned Customer")).toBe(true);
+    expect(scopedCustomers.some((customer: { name: string }) => customer.name === "Phase5 Resolver Customer")).toBe(true);
     expect(scopedCustomers.some((customer: { name: string }) => customer.name === "Phase5 Hidden Customer")).toBe(false);
     expect(scopedCustomers.some((customer: { name: string }) => customer.name === "Phase5 Unassigned Customer")).toBe(false);
 
@@ -196,7 +202,8 @@ describe("API integration", () => {
     expect(allResponse.statusCode).toBe(200);
     const allCustomers = allResponse.json();
 
-    expect(allCustomers.some((customer: { name: string }) => customer.name === "Phase5 Scoped Customer")).toBe(true);
+    expect(allCustomers.some((customer: { name: string }) => customer.name === "Phase5 Owned Customer")).toBe(true);
+    expect(allCustomers.some((customer: { name: string }) => customer.name === "Phase5 Resolver Customer")).toBe(true);
     expect(allCustomers.some((customer: { name: string }) => customer.name === "Phase5 Hidden Customer")).toBe(true);
     expect(allCustomers.some((customer: { name: string }) => customer.name === "Phase5 Unassigned Customer")).toBe(true);
   });
@@ -204,7 +211,7 @@ describe("API integration", () => {
   it("returns visits and opportunities scoped to the logged-in salesperson by default and expands with scope=all", async () => {
     const sales = await getUserByEmail("obchodnik1@marpex.sk");
     const otherSales = await getUserByEmail("obchodnik2@marpex.sk");
-    const customer = await createTestCustomer({ name: "Phase5 Scope Activity", salespersonId: sales.id });
+    const customer = await createTestCustomer({ name: "Phase5 Scope Activity", ownerId: sales.id });
     const contact = await createTestContact(customer.id);
 
     await createTestVisit({

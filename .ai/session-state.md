@@ -1,8 +1,8 @@
 # Session State
 
-Last updated: 2026-04-29
-Current task: Add named salesperson accounts, assign customers to salespeople, and default customer/dashboard views to the logged-in salesperson while still allowing broader access on demand
-Current phase: Implementation complete and locally validated with focused web tests plus full monorepo typecheck; live account creation, commit, push, migration, and deploy remain pending
+Last updated: 2026-04-30
+Current task: Rename customer ownership UI from salesperson to owner, add multi-resolver customer assignments, and scope the sales dashboard by firms where the user is owner or resolver
+Current phase: Implementation complete and locally validated with focused web tests plus full monorepo typecheck; DB-backed integration is blocked by missing local PostgreSQL, and commit or push or deploy remain pending
 Approval status: User explicitly requested account creation, commit, push, and deploy. Local implementation is complete; live production mutation is pending the release step.
 
 ## Repository Discovery
@@ -67,6 +67,10 @@ Approval status: User explicitly requested account creation, commit, push, and d
 - `06_IMPLEMENTATION/eslint.config.mjs` and package manifests define the current TypeScript tooling
 
 ## Validation Performed
+
+- `cd 06_IMPLEMENTATION && npx vitest run tests/web/customers-page.spec.tsx tests/web/customer-detail-page.spec.tsx tests/web/dashboard-page.spec.tsx --config vitest.phase5.config.ts`: passed after the owner or resolver customer UI and dashboard changes.
+- `cd 06_IMPLEMENTATION && npm -w packages/domain run build && npm run typecheck`: passed after rebuilding `@marpex/domain` so API and web workspaces consume the updated owner or resolver declarations.
+- `cd 07_TEST_SUITE && npx vitest run integration/api.spec.ts --config vitest.config.ts -t "returns dashboard scoped to the logged-in salesperson|returns customers scoped to the owner or resolver by default and expands with scope=all"`: blocked by `ECONNREFUSED` because no PostgreSQL instance was reachable on `localhost:5432`.
 
 - `get_errors` on `.github/copilot-instructions.md` and `AGENTS.md`: no workspace errors reported
 - `file_search` confirmed 7 path-specific instruction files under `.github/instructions/`
@@ -163,6 +167,11 @@ Approval status: User explicitly requested account creation, commit, push, and d
 - `07_TEST_SUITE` TypeScript validation is environment-blocked until its dependencies or type packages are installed in this shell.
 
 ## Current Execution Notes
+
+- New discovery for the current task confirmed the smallest safe release model is to keep `customers.salesperson_id` as the stored owner and add `customer_resolvers` as a separate join table, exposing the clearer `owner*` and `resolver*` API fields at the contract boundary.
+- Implemented owner and resolver handling across `packages/domain`, `apps/api/src/routes/customers.ts`, `apps/api/src/routes/dashboard.ts`, the customer web pages, focused web tests, and additive migration `0010_customer_resolvers.sql`.
+- Dashboard KPIs and top deals now use firms where the logged-in salesperson is the owner or one of the resolvers, while the planner preview remains scoped to the salesperson's own activities.
+- Focused DB-backed integration coverage was updated for the new customer and dashboard scope semantics, but execution is still blocked in this shell because PostgreSQL is not reachable on `localhost:5432`.
 
 - New discovery for the current task confirmed the direct control gap: `apps/api/src/routes/dashboard.ts` already scopes visits and opportunities by `ownerId`, but `customers` has no salesperson field and `apps/api/src/routes/customers.ts` currently returns all customers for every authenticated user.
 - The smallest coherent fix is to add a nullable customer-level salesperson reference, expose it through the shared customer schema, scope customer-facing API routes by the session user by default, and add an explicit opt-out for broader visibility.

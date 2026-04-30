@@ -100,7 +100,7 @@ paths:
             enum: [potravinarstvo, oem, mobile_equipment]
         - in: query
           name: scope
-          description: Salesperson default is `mine`. Use `all` to explicitly show the full customer portfolio. Managers always see all customers.
+          description: Salesperson default is `mine`. Use `all` to explicitly show the full customer portfolio. In `mine`, customers match firms where the salesperson is the owner or one of the resolvers. Managers always see all customers.
           schema:
             type: string
             enum: [mine, all]
@@ -175,10 +175,15 @@ paths:
                 shareOfWallet:
                   type: integer
                   nullable: true
-                salespersonId:
+                ownerId:
                   type: string
                   format: uuid
                   nullable: true
+                resolverIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
       responses:
         '201':
           description: Created customer
@@ -432,7 +437,7 @@ paths:
       parameters:
         - in: query
           name: scope
-          description: Salesperson default is `mine`. Use `all` to expand dashboard KPIs and top deals to all salespeople. The planner preview stays personal.
+          description: Salesperson default is `mine`. Use `all` to expand dashboard KPIs and top deals to all salespeople. In `mine`, dashboard KPIs and top deals are computed from firms where the salesperson is the owner or one of the resolvers. The planner preview stays personal.
           schema:
             type: string
             enum: [mine, all]
@@ -692,13 +697,22 @@ components:
         shareOfWallet:
           type: integer
           nullable: true
-        salespersonId:
+        ownerId:
           type: string
           format: uuid
           nullable: true
-        salespersonName:
+        ownerName:
           type: string
           nullable: true
+        resolverIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        resolverNames:
+          type: array
+          items:
+            type: string
     Visit:
       type: object
       properties:

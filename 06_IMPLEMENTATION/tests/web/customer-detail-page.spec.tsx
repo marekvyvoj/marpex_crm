@@ -56,8 +56,10 @@ describe("CustomerDetailPage", () => {
       annualRevenuePlan: "180000",
       annualRevenuePlanYear: new Date().getFullYear(),
       shareOfWallet: 35,
-      salespersonId: "sales-1",
-      salespersonName: "Rastislav Bušík",
+      ownerId: "sales-1",
+      ownerName: "Rastislav Bušík",
+      resolverIds: ["sales-2"],
+      resolverNames: ["Patrik Bača"],
       createdAt: "2026-04-19T10:00:00.000Z",
     };
     let contacts = [
@@ -118,7 +120,8 @@ describe("CustomerDetailPage", () => {
     expect(await screen.findByRole("heading", { name: "Phase5 Customer Detail" })).toBeInTheDocument();
     expect(screen.getByText(/Odvetvie:/)).toHaveTextContent("OEM");
     expect(screen.getByText(/Segment:/)).toHaveTextContent("integrator");
-    expect(screen.getByText(/Obchodník:/)).toHaveTextContent("Rastislav Bušík");
+    expect(screen.getByText(/Vlastník:/)).toHaveTextContent("Rastislav Bušík");
+    expect(screen.getByText(/Riešitelia:/)).toHaveTextContent("Patrik Bača");
     expect(screen.getByText(/IČO:/)).toHaveTextContent("44556677");
     expect(screen.getByText(/DIČ:/)).toHaveTextContent("2023001122");
     expect(screen.getByText(/IČ DPH:/)).toHaveTextContent("SK2023001122");
@@ -168,8 +171,10 @@ describe("CustomerDetailPage", () => {
       annualRevenuePlan: "100000",
       annualRevenuePlanYear: new Date().getFullYear(),
       shareOfWallet: null,
-      salespersonId: null,
-      salespersonName: null,
+      ownerId: null,
+      ownerName: null,
+      resolverIds: [],
+      resolverNames: [],
       createdAt: "2026-04-19T10:00:00.000Z",
     };
     const contacts = [];
